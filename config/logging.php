@@ -67,6 +67,11 @@ return [
             'path' => storage_path('logs/host_power_log.log'),
             'level' => 'info',
         ],
+        'redis_update_error_log' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/redis_update_error_log.log'),
+            'level' => 'info',
+        ],
 
         // Default channels
         'stack' => [
