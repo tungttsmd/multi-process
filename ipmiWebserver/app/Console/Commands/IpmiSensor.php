@@ -12,7 +12,7 @@ class IpmiSensor extends Command
      *
      * @var string
      */
-    protected $signature = 'ipmi:sensor {--limit=50}';
+    protected $signature = 'ipmi:sensors {--limit=50}';
 
     /**
      * The console command description.
@@ -34,7 +34,6 @@ class IpmiSensor extends Command
         } else {
             foreach ($host as $item) {
                 $this->info("Quét sensor cho host: " . $item->name);
-                dispatch(new IpmiSensorJob($item));
             }
         }
     }

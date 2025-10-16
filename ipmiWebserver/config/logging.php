@@ -51,7 +51,24 @@ return [
     */
 
     'channels' => [
+        // Custom channels
+        'host_sensor_log' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/host_sensor_log.log'),
+            'level' => 'info',
+        ],
+        'host_state_log' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/host_state_log.log'),
+            'level' => 'info',
+        ],
+        'host_power_log' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/host_power_log.log'),
+            'level' => 'info',
+        ],
 
+        // Default channels
         'stack' => [
             'driver' => 'stack',
             'channels' => explode(',', env('LOG_STACK', 'single')),
@@ -89,7 +106,7 @@ return [
             'handler_with' => [
                 'host' => env('PAPERTRAIL_URL'),
                 'port' => env('PAPERTRAIL_PORT'),
-                'connectionString' => 'tls://'.env('PAPERTRAIL_URL').':'.env('PAPERTRAIL_PORT'),
+                'connectionString' => 'tls://' . env('PAPERTRAIL_URL') . ':' . env('PAPERTRAIL_PORT'),
             ],
             'processors' => [PsrLogMessageProcessor::class],
         ],
