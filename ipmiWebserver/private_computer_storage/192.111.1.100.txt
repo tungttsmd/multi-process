@@ -1,5 +1,0 @@
-Temp1        | 42 degrees C | ok
-Temp2        | 45 degrees C | ok
-Fan1         | 2800 RPM     | ok
-Fan2         | 3000 RPM     | ok
-Voltage1     | 12.3 Volts   | ok
