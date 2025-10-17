@@ -18,97 +18,101 @@ class SensorCrawler implements ShouldQueue
     protected $host_ip;
     protected $username;
     protected $password;
-    /**
-     * Create a new job instance.
-     */
+
     public function __construct($host_ip, $username, $password)
     {
-        $this->host_ip = $host_ip;
+        $this->host_ip  = $host_ip;
         $this->username = $username;
         $this->password = $password;
+
         $this->command = [
-            'ipmitool', // Execute file của IPMI
-            '-I', // Interface (lan/lanplus,usb...)
+            'ipmitool',
+            '-I',
             'lanplus',
-            '-H', // Host
+            '-H',
             $this->host_ip,
-            '-U', // User
+            '-U',
             $this->username,
-            '-P', // Password
+            '-P',
             $this->password,
             'sensor',
             'reading',
             'CPU0_Temp',
             'CPU1_Temp',
             'CPU0_FAN',
-            'CPU1_FAN' // Lệnh thực thi
-
+            'CPU1_FAN',
         ];
-        $this->channelLogFile = "host_sensor_log"; // File ở storage/logs/host_sensor_log.log
-        // Log::channel($this->channelLogFile)->info("Command: " . implode(' ', $this->command));
 
-        $hostRedisFormat = str_replace('.', '_', $this->host_ip); // 203.113.131.1 chuyển sang format dễ xử lí 203_113_131_1
-        $this->redisKey = "ipmi:sensor:host:$hostRedisFormat"; // Key Redis cần đặt để lưu vào Memory
+        $this->channelLogFile = 'host_sensor_log';
+        $hostRedisFormat      = str_replace('.', '_', $this->host_ip);
+        $this->redisKey       = "ipmi_sensor:$hostRedisFormat";
     }
 
-    /**
-     * Execute the job.
-     */
     public function handle(): void
     {
-        $p = new Process($this->command);
-        $p->setTimeout(2.6);
         try {
-            // Chạy sensor command
+            $p = new Process($this->command);
+            $p->setTimeout(2.6);
             $p->run();
-            $output = $this->convertOutputJson($p->getOutput());
 
-            // Ghi log và đệm vào Redis
-            Log::channel($this->channelLogFile)->info($output);
-            Redis::rpush($this->redisKey, $output);
-        } catch (\Exception $e) {
-            Log::channel($this->channelLogFile)->error($e->getMessage());
-            Redis::rpush($this->redisKey, $e->getMessage());
+            $stderr = trim($p->getErrorOutput());
+            $stdout = trim($p->getOutput());
+
+            if (str_contains($stderr, 'exceeded the timeout') || $p->getExitCode() === 143) {
+                throw new \RuntimeException("Timeout after {$p->getTimeout()}s (no IPMI response)");
+            }
+
+            if (!$p->isSuccessful()) {
+                $err = $stderr ?: 'Unknown process error';
+                throw new \RuntimeException($err);
+            }
+
+            if ($stdout === '' || stripos($stdout, 'timeout') !== false) {
+                throw new \RuntimeException('No sensor data or timeout');
+            }
+
+            $json = $this->parseOutput($stdout);
+            Log::channel($this->channelLogFile)->info($json);
+            Redis::rpush($this->redisKey, $json);
+        } catch (\Throwable $e) {
+            $error = $this->makeResponse('error', $e->getMessage());
+            Log::channel($this->channelLogFile)->error($error);
+            Redis::rpush($this->redisKey, $error);
         }
     }
-    protected function convertOutputJson($string)
+
+    protected function parseOutput(string $rawOutput): string
     {
-        $string = trim($string);
+        $lines = array_filter(explode("\n", trim($rawOutput)));
+        $data = [];
 
-        // Nếu chuỗi rỗng hoặc toàn lỗi => trả về JSON cảnh báo
-        if ($string === '' || stripos($string, 'Error') !== false) {
-            return json_encode([
-                'ip'   => $this->host_ip,
-                'timestamp' => now()->format('Y-m-d H:i:s'),
-                'status'    => 'error',
-                'message'   => $string ?: 'No sensor data',
-            ], JSON_UNESCAPED_UNICODE);
-        }
-
-        $lines = explode("\n", $string);
-        $data = [
-            'ip'   => $this->host_ip,
-            'timestamp' => now()->format('Y-m-d H:i:s'),
-            'status'    => 'success',
-        ];
-
-        $validCount = 0;
         foreach ($lines as $line) {
             if (strpos($line, '|') !== false) {
                 [$key, $value] = array_map('trim', explode('|', $line, 2));
                 if ($key !== '' && $value !== '') {
                     $data[$key] = is_numeric($value) ? (float)$value : $value;
-                    $validCount++;
                 }
             }
         }
 
-        // Nếu không có dữ liệu hợp lệ, vẫn đánh dấu là error
-        if ($validCount === 0) {
-            $data['status']  = 'error';
-            $data['message'] = 'No valid sensor lines found';
+        $importantKeys = ['CPU0_Temp', 'CPU1_Temp', 'CPU0_FAN', 'CPU1_FAN'];
+        $foundKeys = array_intersect($importantKeys, array_keys($data));
+
+        if (empty($foundKeys)) {
+            throw new \RuntimeException('No valid sensor fields found (CPU/FAN missing)');
         }
 
-        return json_encode($data, JSON_UNESCAPED_UNICODE);
+        return $this->makeResponse('success', 'Sensor data fetched successfully', $data);
+    }
+
+    protected function makeResponse(string $status, string $message, array|string $data = ''): string
+    {
+        return json_encode([
+            'ip'        => $this->host_ip,
+            'timestamp' => now()->format('Y-m-d H:i:s'),
+            'status'    => $status,
+            'message'   => $message,
+            'data'      => empty($data)  || $data === '' ? new \stdClass() : $data,
+        ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }
 }

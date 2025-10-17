@@ -12,6 +12,7 @@ return [
         'sensor' => explode(',', env('QUEUE_SENSORS', 'default')),
         'status'  => explode(',', env('QUEUE_STATUSES', 'default')),
         'update'  => explode(',', env('QUEUE_UPDATES', 'default')),
+        'power'  => explode(',', env('QUEUE_POWERS', 'default')),
 
     ],
 

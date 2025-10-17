@@ -1,19 +1,51 @@
 <?php
 
 use App\Jobs\TestJob;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 use Livewire\Volt\Volt;
 
 Route::get('/ping', function () {
-    TestJob::dispatch();
     return "Ping đang chạy qua queue!";
 });
+Route::get('/redis', function () {
+    $keys = Redis::keys('*');
+    $result = [];
+    dump($keys);
+    foreach ($keys as $key) {
+        // Lấy type của key
+        $type = Redis::type($key);
+        $value = null;
 
-Route::get('/', function () {
-    return view('welcome');
-})->name('home');
+        switch ($type) {
+            case 'list':
+                // Đọc toàn bộ phần tử list
+                $value = Redis::lrange($key, 0, -1);
+                break;
+            case 'string':
+                $value = Redis::get($key);
+                break;
+            case 'set':
+                $value = Redis::smembers($key);
+                break;
+            case 'hash':
+                $value = Redis::hgetall($key);
+                break;
+            default:
+                $value = '(unsupported type)';
+        }
 
+        $result[] = [
+            'key' => $key,
+            'type' => $type,
+            'value' => $value,
+        ];
+    }
+
+    dd(response()->json($result, 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    return;
+});
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])
     ->name('dashboard');

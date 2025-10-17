@@ -8,78 +8,44 @@ use Illuminate\Support\Facades\DB;
 
 class IPMIExecuteDispatcher extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'ipmi:exe 
-    {--a= : Hành động cần thực hiện (on/off/reset)} 
-    {--h= : Tên host cần thao tác}';
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Command description';
+    protected $signature = 'ipmi:power {mode : on:<ip>|off:<ip>|reset:<ip>}';
+    protected $description = 'Dispatch job PowerExecutor để bật/tắt/reset một host cụ thể (không hỗ trợ all)';
 
-    /**
-     * Execute the console command.
-     */
     public function handle()
     {
-        $action = $this->option('a');
-        $host = $this->option('h');
+        $mode = $this->argument('mode');
 
-        if (in_array($action, ['on', 'off', 'reset', 'rs'])) {
-            if ($action == 'rs') {
-                $action = 'reset';
-            };
-            $host = DB::table('hosts')->where('ip', $host)->first();
+        // --- Tách cú pháp on:ip / off:ip / reset:ip ---
+        $parts = explode(':', $mode);
+        if (count($parts) !== 2) {
+            $this->error('Sai cú pháp. Dùng: php artisan ipmi:power on:192.168.1.10');
+            return;
+        }
 
-            if ($host == null) {
-                $this->error("Host:$host không tồn tại");
-            } else {
-                $confirm = $this->confirm("Xác nhận: ($host->ip) == chassis power $action ==");
-                if ($confirm) {
-                    try {
-                        $this->action($action, $host->username, $host->password, $host->ip);
-                        $this->success("Gửi lệnh thành công: ($host->ip) == chassis power $action ==");
-                    } catch (\Exception $e) {
-                        $this->error("Gửi lệnh thất bại (lỗi): ($host->ip) == chassis power $action ==");
-                    }
-                } else {
-                    $this->error("Đã huỷ thao tác dispatch: ($host->ip) == chassis power $action ==");
-                }
-            }
-        } else {
-            $this->error('Action không hợp lệ');
+        [$action, $ip] = $parts;
+
+        if (!in_array($action, ['on', 'off', 'reset'])) {
+            $this->error("Hành động không hợp lệ: $action");
+            return;
         }
-    }
-    protected function action(string $action, string $username, string $password, string $host)
-    {
-        if (in_array($action, ['on', 'off', 'reset'])) {
-            if ($action === 'on') {
-                dispatch(new PowerExecutor($host, $username, $password, $action));
-            } elseif ($action === 'off') {
-                dispatch(new PowerExecutor($host, $username, $password, $action));
-            } elseif ($action === 'reset') {
-                dispatch(new PowerExecutor($host, $username, $password, $action));
-            }
-        } else {
-            return false;
+
+        $host = DB::table('hosts')->where('ip', $ip)->first();
+        if (!$host) {
+            $this->error("Không tìm thấy host có IP: {$ip}");
+            return;
         }
-    }
-    protected function success(string $message)
-    {
-        $this->line("<fg=green>{$message}</>");
-    }
-    protected function clean()
-    {
-        $this->output->write("\033c"); // reset screen (ANSI)
-    }
-    protected function pause()
-    {
-        fgets(STDIN);
+
+        // --- Xác nhận thao tác ---
+        $confirm = $this->confirm("Xác nhận: ({$host->ip}) => chassis power {$action}");
+        if (!$confirm) {
+            $this->warn("Đã huỷ thao tác: ({$host->ip}) => power {$action}");
+            return;
+        }
+
+        // --- Dispatch job ---
+        dispatch(new PowerExecutor($host->ip, $host->username, $host->password, $action))
+            ->onQueue('processor_power_1');
+
+        $this->info("Đã gửi lệnh power {$action} cho {$host->ip}");
     }
 }

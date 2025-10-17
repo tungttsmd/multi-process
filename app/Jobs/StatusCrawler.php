@@ -19,64 +19,70 @@ class StatusCrawler implements ShouldQueue
     protected $username;
     protected $password;
 
-    /**
-     * Create a new job instance.
-     */
     public function __construct($host_ip, $username, $password)
     {
-        $this->host_ip = $host_ip;
+        $this->host_ip  = $host_ip;
         $this->username = $username;
         $this->password = $password;
+
         $this->command = [
-            'ipmitool', // Execute file của IPMI
-            '-I', // Interface (lan/lanplus,usb...)
+            'ipmitool',
+            '-I',
             'lanplus',
-            '-H', // Host
+            '-H',
             $this->host_ip,
-            '-U', // User
+            '-U',
             $this->username,
-            '-P', // Password
+            '-P',
             $this->password,
             'chassis',
             'power',
-            'status' // Lệnh thực thi
+            'status',
         ];
-        $this->channelLogFile = "host_status_log"; // File ở storage/logs/host_status_log.log
-        // Log::channel($this->channelLogFile)->info("Command: " . implode(' ', $this->command));
 
-        $hostRedisFormat = str_replace('.', '_', $this->host_ip); // 203.113.131.1 chuyển sang format dễ xử lí 203_113_131_1
-        $this->redisKey = "ipmi:status:host:$hostRedisFormat"; // Key Redis cần đặt để lưu vào Memory
+        $this->channelLogFile = 'host_status_log';
+        $hostRedisFormat      = str_replace('.', '_', $this->host_ip);
+        $this->redisKey       = "ipmi_status:$hostRedisFormat";
     }
 
-    /**
-     * Execute the job.
-     */
     public function handle(): void
     {
-        $p = new Process($this->command);
-        $p->setTimeout(1.6);
         try {
+            $p = new Process($this->command);
+            $p->setTimeout(1.6);
             $p->run();
-            if ($p->isSuccessful()) {
-                $output = $this->convertOutputJson($p->getOutput());
-                // Ghi log và đệm vào Redis
-                Redis::rpush($this->redisKey, $output);
-                Log::channel($this->channelLogFile)->info($output);
-            } else {
-                $output = $this->convertOutputJson($p->getErrorOutput());
-                Log::channel($this->channelLogFile)->info($output);
-                Redis::rpush($this->redisKey, $output);
+
+            $stderr = trim($p->getErrorOutput());
+            $stdout = trim($p->getOutput());
+
+            // Timeout thật hoặc thông báo timeout trong error
+            if (str_contains($stderr, 'exceeded the timeout') || $p->getExitCode() === 143) {
+                throw new \RuntimeException("Timeout after {$p->getTimeout()}s (no IPMI response)");
             }
-        } catch (\Exception $e) {
-            Log::channel($this->channelLogFile)->error($e->getMessage());
-            Redis::rpush($this->redisKey, $e->getMessage());
+
+            if (!$p->isSuccessful()) {
+                $err = $stderr ?: 'Unknown process error';
+                throw new \RuntimeException($err);
+            }
+
+            if ($stdout === '') {
+                throw new \RuntimeException('Empty response from IPMI');
+            }
+
+            $json = $this->parseStatusOutput($stdout);
+            Log::channel($this->channelLogFile)->info($json);
+            Redis::rpush($this->redisKey, $json);
+        } catch (\Throwable $e) {
+            $error = $this->makeResponse('error', $e->getMessage());
+            Log::channel($this->channelLogFile)->error($error);
+            Redis::rpush($this->redisKey, $error);
         }
     }
-    protected function convertOutputJson($string)
+
+    protected function parseStatusOutput(string $rawOutput): string
     {
-        $output = strtolower(trim($string));
+        $output = strtolower(trim($rawOutput));
         $power = 'unknown';
-        $error = null;
 
         if (str_contains($output, 'chassis power is on')) {
             $power = 'on';
@@ -84,23 +90,23 @@ class StatusCrawler implements ShouldQueue
             $power = 'off';
         } elseif (str_contains($output, 'reset') || str_contains($output, 'cycle')) {
             $power = 'reset';
-        } else {
-            $error = trim($string) ?: 'unknown';
         }
 
-        $json = [
+        if ($power === 'unknown') {
+            throw new \RuntimeException($rawOutput ?: 'Unable to determine power state');
+        }
+
+        return $this->makeResponse('success', 'Power status fetched successfully', ['power' => $power]);
+    }
+
+    protected function makeResponse(string $status, string $message, array|string $data = ''): string
+    {
+        return json_encode([
             'ip'        => $this->host_ip,
             'timestamp' => now()->format('Y-m-d H:i:s'),
-        ];
-
-        if ($power !== 'unknown') {
-            $json['status'] = 'success';
-            $json['power']  = $power;
-        } else {
-            $json['status'] = 'error';
-            $json['error']  = $error;
-        }
-
-        return json_encode($json, JSON_UNESCAPED_UNICODE);
+            'status'    => $status,
+            'message'   => $message,
+            'data'      => empty($data) ? new \stdClass() : $data,
+        ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }
 }

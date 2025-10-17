@@ -59,8 +59,6 @@ class IPMICrawlDispatcher extends Command
                         $processorStatuses = $queueList['status'];
                         $queueSensor = $processorSensors[$index % count($processorSensors)];
                         $queueStatus = $processorStatuses[$index % count($processorStatuses)];
-                        $this->line(print_r($processorSensors, true));
-                        $this->line(print_r($processorStatuses, true));
 
                         if ($action === 'sensor') {
                             $this->sensor($item->ip, $item->username, $item->password, $queueSensor);
@@ -75,11 +73,28 @@ class IPMICrawlDispatcher extends Command
                         $this->error("Gặp lỗi khi dispatch status & sensor crawler cho host: {$item->ip}");
                     }
                 }
-                $this->line("Tổng số lượng đã dispatch: " . count($list));
+                $this->informStatisticHandler($action, $processorSensors, $processorStatuses, $list);
             }
         } else {
             $this->error('Action không hợp lệ (status/sensor)');
         }
+    }
+    protected function informStatisticHandler($action, $processorSensors, $processorStatuses, $list)
+    {
+        $this->line("=== Danh sách processor đã phân phối: " . count($list) . " ===");
+        $this->newLine();
+        if ($action === 'sensor') {
+            foreach ($processorSensors as $item) {
+                $this->line(" -> " . $item);
+            }
+            $this->newLine();
+        } elseif ($action === 'status') {
+            foreach ($processorStatuses as $item) {
+                $this->line(" -> " . $item);
+            }
+            $this->newLine();
+        }
+        $this->line("=== Tổng số lượng job đã dispatch: " . count($list) . " ===");
     }
     protected function sensor(string $ip, string $username, string $password, string $queue = 'default')
     {
@@ -109,7 +124,6 @@ class IPMICrawlDispatcher extends Command
             'sensor' => $sensorQueues
         ];
     }
-
     protected function success(string $message)
     {
         $this->line("<fg=green>{$message}</>");
