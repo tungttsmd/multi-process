@@ -52,7 +52,7 @@ class SensorCrawler implements ShouldQueue
     {
         try {
             $p = new Process($this->command);
-            $p->setTimeout(2.6);
+            $p->setTimeout(6.6);
             $p->run();
 
             $stderr = trim($p->getErrorOutput());

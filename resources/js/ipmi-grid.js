@@ -98,17 +98,28 @@ function createServerElement(id, data) {
     // Server content - simplified to show server name, temperatures and fan speeds
     const serverNumber = parseInt(id.replace('server-', '')); // Get the 1-based server number
     const serverName = data.name || `Server ${serverNumber}`; // Use server name or fallback to number
+    console.log({ id, serverName, ip: data.ip, data });
     serverElement.innerHTML = `
         <div class="flex justify-between items-center">
             <h3 class="text-xl font-bold" title="${data.ip || 'N/A'}">${serverName}</h3>
+            <div style="display: flex; gap: 10px;">
+            <button class="detail-button ml-2" data-server="${id}" title="Details">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
+                </svg>
+            </button>
             <button class="power-button" data-server="${id}" title="Power Control">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
             </button>
+            </div>
+
         </div>
 
+
         <div class="mt-2 space-y-1 text-sm">
+
             <div class="flex items-center justify-between">
                 <span>CPU0: ${cpu0Temp}${typeof cpu0Temp === 'number' ? '°C' : ''}</span>
                 ${typeof cpu0Temp === 'number' ? `<span class="status-indicator ${getStatusClass('temp', cpu0Temp)}"></span>` : ''}
@@ -127,26 +138,36 @@ function createServerElement(id, data) {
             </div>
         </div>
 
+        <small class="text-gray-400 font-semibold">${data.ip}</small>
+
         <div class="power-options">
+
             <div class="flex justify-between items-center mb-2">
-                <h4 class="font-medium">Power ${serverNumber}</h4>
+                <h2 class="font-medium m-0">Power ${serverName}</h2>
+
                 <button class="close-button" data-action="cancel" title="Close">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             </div>
+
+
             <div class="space-y-2">
+                <button class="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-1.5 px-3 rounded text-sm" data-action="reset">
+                    Reset
+                </button>
                 <button class="w-full bg-green-500 hover:bg-green-600 text-white py-1.5 px-3 rounded text-sm" data-action="power-on">
                     Power On
                 </button>
                 <button class="w-full bg-red-500 hover:bg-red-600 text-white py-1.5 px-3 rounded text-sm" data-action="power-off">
                     Power Off
                 </button>
-                <button class="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-1.5 px-3 rounded text-sm" data-action="reset">
-                    Reset
-                </button>
+
+
             </div>
+                <small class="text-gray-400 font-semibold pt-2">${data.ip}</small>
+
         </div>
     `;
 
@@ -198,6 +219,40 @@ function handlePowerButtonClick(e) {
     }
 }
 
+async function handleDetailClick(e) {
+    e.stopPropagation();
+    const serverElement = e.target.closest('.server-cell');
+    if (!serverElement) return;
+    const ip = serverElement.dataset.ip;
+    const name = serverElement.dataset.name || serverElement.dataset.id;
+    if (!ip) {
+        alert('Missing host IP for this server.');
+        return;
+    }
+    if (confirm(`Xem chi tiết sensor của ${name} (${ip})?`)) {
+        try {
+            const res = await fetch(`/api/redis/sensor/${ip}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': getCsrfToken()
+                }
+            });
+            const data = await res.json();
+            if (!res.ok || data.status !== 'ok') {
+                alert(`Fetch failed: ${data.message || 'Unknown error'}`);
+            } else {
+                const out = typeof data.output === 'string' ? data.output : JSON.stringify(data, null, 2);
+                alert(`Details for ${name} (${ip}):\n\n${out}`);
+                console.log('Sensor details response:', data);
+            }
+        } catch (err) {
+            console.error('Detail fetch error', err);
+            alert('Failed to load details.');
+        }
+    }
+}
+
 async function handlePowerAction(e) {
     const button = e.target.closest('[data-action]');
     if (!button) return;
@@ -229,31 +284,41 @@ async function handlePowerAction(e) {
         return;
     }
 
+
+    // Nơi mấy cái lệnh power thực thi
     if (confirm(`Are you sure you want to ${actionLabel[action]} ${name} (${ip})?`)) {
         try {
-            const res = await fetch('/api/power', {
-                method: 'POST',
+
+            // Sợ lỗi nên không chơi power trong này
+            const res = await fetch(`/api/redis/sensor/${ip}`, {
+                method: 'GET', // route của bạn là GET nên đổi lại
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': getCsrfToken()
-                },
-                body: JSON.stringify({ action: actionValue, ip })
+                }
             });
+
             const data = await res.json();
-            if (!res.ok || !data.success) {
-                alert(`Power command failed: ${data.error || 'Unknown error'}`);
+
+            if (!res.ok || data.status !== 'ok') {
+                alert(`Power command failed: ${data.message || 'Unknown error'}`);
             } else {
-                // Optionally reflect state in UI
+                // Thay đổi giao diện theo trạng thái
                 if (action === 'power-off') {
                     serverElement.classList.add('bg-gray-100');
                 } else if (action === 'power-on') {
                     serverElement.classList.remove('bg-gray-100');
                 }
+
+                // Hiển thị dữ liệu sensor từ API
+                console.log(`${name} Sensor data:`, data);
+                alert(`✅ ${data.ip} - CPU0: ${data.output}°C, FAN0: ${data.status} RPM`);
             }
         } catch (err) {
             console.error('Power command error', err);
             alert('Failed to send power command.');
         }
+
     }
 
     // Close the power options
@@ -339,6 +404,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Handle detail button click
+        if (e.target.closest('.detail-button')) {
+            handleDetailClick(e);
+            return;
+        }
+
         // Handle power actions (on/off/reset/cancel)
         const actionButton = e.target.closest('[data-action]');
         if (actionButton) {
@@ -368,10 +439,15 @@ document.addEventListener('DOMContentLoaded', () => {
 // Export for testing if needed
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        initializeGrid,
         createServerElement,
         getTemperatureStatus,
         getFanStatus,
-        getStatusClass
+        getStatusClass,
+        fetchServerData,
+        updateGrid,
+        highlightServers,
+        handlePowerAction,
+        handlePowerButtonClick,
+        handleDetailClick
     };
 }

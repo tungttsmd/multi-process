@@ -41,13 +41,17 @@ class RedisToDatabase implements ShouldQueue
             Log::channel($this->channelLogFile)->info('Sensor: ' . $sensorRaw);
             Log::channel($this->channelLogFile)->info('Status: ' . $statusRaw);
 
+            $status = json_decode($sensorRaw)->status;
 
+            if ($status === 'success') {
             DB::table('sensors')
                 ->where('ip', $this->host_ip)
                 ->update([
                     'log' => json_encode($sensorRaw, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
                     'updated_at' => now(),
                 ]);
+            };
+
             DB::table('statuses')
                 ->where('ip', $this->host_ip)
                 ->update([

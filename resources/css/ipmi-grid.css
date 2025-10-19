@@ -265,7 +265,7 @@ main {
     border-left: 4px solid #b91c1c;
 }
 
-.server-cell .power-button {
+.server-cell .power-button, .server-cell .detail-button {
     background: rgba(0, 0, 0, 0.05);
     border: none;
     border-radius: 50%;
@@ -280,21 +280,21 @@ main {
     color: #4b5563;
 }
 
-.server-cell .power-button:hover {
+.server-cell .power-button:hover, .server-cell .detail-button:hover {
     background: rgba(0, 0, 0, 0.1);
     transform: scale(1.1);
     color: #1f2937;
 }
 
-.server-cell:hover .power-button {
+.server-cell:hover .power-button, .server-cell:hover .detail-button {
     opacity: 1;
 }
 
-.server-cell .power-button:hover {
+.server-cell .power-button:hover, .server-cell .detail-button:hover {
     background-color: #d1d5db;
 }
 
-.server-cell .power-button svg {
+.server-cell .power-button svg, .server-cell .detail-button svg {
     width: 1rem;
     height: 1rem;
     color: #4b5563;

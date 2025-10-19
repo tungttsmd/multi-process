@@ -49,7 +49,7 @@ class StatusCrawler implements ShouldQueue
     {
         try {
             $p = new Process($this->command);
-            $p->setTimeout(1.6);
+            $p->setTimeout(6.6);
             $p->run();
 
             $stderr = trim($p->getErrorOutput());
