@@ -6,7 +6,7 @@ use App\Jobs\PowerExecutor;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
-class IPMIExecuteDispatcher extends Command
+class IPMIDispatchPower extends Command
 {
     protected $signature = 'ipmi:power {mode : on:<ip>|off:<ip>|reset:<ip>}';
     protected $description = 'Dispatch job PowerExecutor để bật/tắt/reset một host cụ thể (không hỗ trợ all)';

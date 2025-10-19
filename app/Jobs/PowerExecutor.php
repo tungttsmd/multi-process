@@ -28,14 +28,16 @@ class PowerExecutor implements ShouldQueue
             $this->command = [
                 'ipmitool', // Execute file của IPMI
                 '-I', // Interface (lan/lanplus,usb...)
-                'lan',
+                'lanplus',
                 '-H', // Host
                 $host_ip,
                 '-U', // User
                 $username,
                 '-P', // Password
                 $password,
-                "chassis power $action", // Lệnh thực thi
+                'chassis',
+                'power',
+                $action, // Lệnh thực thi
             ];
         } else {
             Log::channel($this->channelLogFile)->info("Action không hợp lệ");

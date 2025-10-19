@@ -5,10 +5,22 @@ use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 use Livewire\Volt\Volt;
+use Illuminate\Support\Facades\View;
 
 Route::get('/ping', function () {
     return "Ping đang chạy qua queue!";
 });
+
+
+// IPMI Grid View
+Route::get('/ipmi-grid', function () {
+    return view('ipmi-grid');
+})->middleware(['auth'])->name('ipmi.grid');
+
+Route::get('/', function () {
+    return view('welcome'); // hoặc view tương ứng
+})->name('home');
+
 Route::get('/redis', function () {
     $keys = Redis::keys('*');
     $result = [];
@@ -70,3 +82,4 @@ Route::middleware(['auth'])->group(function () {
 });
 
 require __DIR__ . '/auth.php';
+

@@ -106,7 +106,7 @@ class StatusCrawler implements ShouldQueue
             'timestamp' => now()->format('Y-m-d H:i:s'),
             'status'    => $status,
             'message'   => $message,
-            'data'      => empty($data) ? new \stdClass() : $data,
+            'data'      => empty($data) || $data === '' ? new \stdClass() : $data,
         ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }
 }

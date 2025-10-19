@@ -42,7 +42,7 @@ class IPMIRedisTool extends Command
                     $this->warn('Cần nhập tên key. Ví dụ: php artisan redis:tool get ipmi:sensor:host_10_0_0_1');
                     return;
                 }
-                $value = Redis::get($key);
+                $value = Redis::lrange($key, 0, -1);
                 if ($value === null) {
                     $this->warn("Key '$key' không tồn tại.");
                 } else {

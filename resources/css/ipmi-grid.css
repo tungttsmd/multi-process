@@ -1,0 +1,500 @@
+/* IPMI Grid Styling */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+        Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    min-height: 100vh;
+    background-color: #f3f4f6;
+    padding-top: 4rem; /* Space for fixed header */
+}
+
+/* Fixed Header Styles */
+header {
+    padding: 0 10px;
+}
+
+/* Container for header content */
+.header-container {
+    max-width: 100%;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* Ensure header takes full width */
+header {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Responsive header layout */
+.header-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 8px 0;
+}
+
+/* Logo and title container */
+.header-logo {
+    display: flex;
+    align-items: center;
+    margin-right: auto;
+}
+
+/* Search and buttons container */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    justify-content: flex-end;
+}
+
+/* Search bar styling */
+.search-container {
+    flex: 1;
+    max-width: 300px;
+    position: relative;
+}
+
+/* Responsive adjustments */
+@media (min-width: 768px) {
+    .header-content {
+        flex-direction: row;
+        align-items: center;
+        padding: 0;
+        height: 64px;
+    }
+
+    .header-controls {
+        width: auto;
+        justify-content: flex-end;
+    }
+
+    .search-container {
+        margin-left: auto;
+        margin-right: 15px;
+    }
+}
+
+/* Adjust button sizes for mobile */
+.header-controls button {
+    padding: 6px;
+    min-width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Ensure search input is touch-friendly on mobile */
+#serverSearch {
+    height: 36px;
+    font-size: 14px;
+    padding-left: 32px;
+}
+
+/* Neon text effect with gradient */
+.neon-text {
+    font-family: "Orbitron", sans-serif;
+    background: linear-gradient(90deg, #ff00ff, #00ffff, #ff00ff);
+    background-size: 200% auto;
+    color: #fff;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 10px rgba(255, 0, 255, 0.3),
+        0 0 20px rgba(0, 255, 255, 0.2);
+    animation: gradient-shift 6s ease infinite;
+}
+
+@keyframes gradient-shift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* Logo styles */
+header img {
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.2))
+        drop-shadow(0 0 4px rgba(0, 0, 0, 0.1));
+    transition: filter 0.3s ease;
+}
+
+header img:hover {
+    filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.3))
+        drop-shadow(0 0 6px rgba(0, 0, 0, 0.2));
+}
+
+/* Main content spacing */
+main {
+    padding: 0 20px;
+}
+
+/* Highlighted server cell */
+.server-cell.highlighted {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.8);
+    z-index: 10;
+    position: relative;
+    transition: all 0.2s ease-in-out;
+}
+
+/* Make the server number more prominent when highlighted */
+.server-cell.highlighted h3 {
+    color: #1d4ed8;
+    font-size: 1.5rem;
+    text-shadow: 0 0 8px rgba(29, 78, 216, 0.3);
+}
+
+/* Add a subtle glow effect */
+.server-cell.highlighted::after {
+    content: "";
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: 0.5rem;
+    background: linear-gradient(
+        45deg,
+        rgba(59, 130, 246, 0.2),
+        rgba(99, 102, 241, 0.2)
+    );
+    z-index: -1;
+    animation: none;
+}
+
+.container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+#ipmi-grid {
+    width: 100%;
+    max-width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1536px) {
+    #ipmi-grid {
+        grid-template-columns: repeat(10, minmax(180px, 1fr));
+    }
+}
+
+@media (max-width: 1280px) {
+    #ipmi-grid {
+        grid-template-columns: repeat(8, minmax(160px, 1fr));
+    }
+}
+
+@media (max-width: 1024px) {
+    #ipmi-grid {
+        grid-template-columns: repeat(6, minmax(140px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    #ipmi-grid {
+        grid-template-columns: repeat(4, minmax(120px, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
+    #ipmi-grid {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+        gap: 0.75rem;
+        padding: 0.75rem;
+    }
+
+    .server-cell {
+        min-height: 100px;
+        padding: 0.75rem;
+    }
+}
+
+.server-cell {
+    background-color: #ffffff;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    padding: 1rem;
+    transition: all 0.15s ease-in-out;
+    position: relative;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+    min-height: 120px;
+    aspect-ratio: 1/1;
+}
+
+.server-cell:hover {
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1),
+        0 8px 10px -6px rgb(0 0 0 / 0.1);
+    transform: translateY(-0.25rem);
+}
+
+.server-cell.high-temp {
+    background-color: #fef2f2;
+    border-left: 4px solid #ef4444;
+}
+
+.server-cell.low-fan {
+    background-color: #fffbeb;
+    border-left: 4px solid #f59e0b;
+}
+
+.server-cell.critical {
+    background-color: #fee2e2;
+    border-left: 4px solid #b91c1c;
+}
+
+.server-cell .power-button {
+    background: rgba(0, 0, 0, 0.05);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    width: 1.75rem;
+    height: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s ease;
+    color: #4b5563;
+}
+
+.server-cell .power-button:hover {
+    background: rgba(0, 0, 0, 0.1);
+    transform: scale(1.1);
+    color: #1f2937;
+}
+
+.server-cell:hover .power-button {
+    opacity: 1;
+}
+
+.server-cell .power-button:hover {
+    background-color: #d1d5db;
+}
+
+.server-cell .power-button svg {
+    width: 1rem;
+    height: 1rem;
+    color: #4b5563;
+}
+
+.server-cell .server-name {
+    font-weight: 500;
+    color: #111827;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.server-cell .server-ip {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: #6b7280;
+}
+
+.server-cell .server-status {
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: #6b7280;
+}
+
+.server-cell .status-indicator {
+    display: inline-block;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 9999px;
+    margin-right: 0.5rem;
+}
+
+.server-cell .status-text {
+    color: #4b5563;
+}
+
+.server-cell .power-options {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    left: 0.5rem;
+    background-color: #ffffff;
+    border-radius: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: opacity 0.15s ease-out, transform 0.15s ease-out,
+        visibility 0.15s ease-out;
+    pointer-events: none;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    z-index: 10;
+    overflow: hidden;
+}
+
+.server-cell .power-options .close-button {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 1.75rem;
+    height: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: #9ca3af;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+    transform: scale(0.9);
+}
+
+.server-cell .power-options .close-button:hover {
+    background-color: #f3f4f6;
+    color: #ef4444;
+    transform: scale(1);
+}
+
+.server-cell .power-options .close-button:active {
+    transform: scale(0.9);
+}
+
+.server-cell .power-options .close-button svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.server-cell.show-options .power-options {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.server-cell .server-metrics {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.server-cell .metric {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: #6b7280;
+}
+
+.server-cell .metric-label {
+    color: #6b7280;
+}
+
+.server-cell .metric-value {
+    font-weight: 500;
+    color: #111827;
+}
+
+.server-cell .metric-bar {
+    margin-top: 0.25rem;
+    height: 0.375rem;
+    background-color: #e5e7eb;
+    border-radius: 0.25rem;
+    overflow: hidden;
+}
+
+.server-cell .metric-bar-fill {
+    height: 100%;
+    border-radius: 0.25rem;
+}
+
+.server-cell .metric-bar-fill.cpu {
+    background-color: #3b82f6;
+}
+
+.server-cell .metric-bar-fill.memory {
+    background-color: #10b981;
+}
+
+.server-cell .metric-bar-fill.storage {
+    background-color: #f59e0b;
+}
+
+.server-cell .metric-bar-fill.temp {
+    background-color: #ef4444;
+}
+
+.server-cell .metric-bar-fill.fan {
+    background-color: #8b5cf6;
+}
+
+.server-cell .power-status {
+    position: absolute;
+    bottom: 0.5rem;
+    right: 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 500;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.server-cell .power-status.online {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.server-cell .power-status.offline {
+    background-color: #f3f4f6;
+    color: #374151;
+}
+
+.server-cell .power-status.error {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.server-cell .power-status.warning {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+/* Status indicators */
+.status-ok {
+    background-color: #10b981;
+}
+
+.status-warning {
+    background-color: #f59e0b;
+}
+
+.status-critical {
+    background-color: #ef4444;
+}

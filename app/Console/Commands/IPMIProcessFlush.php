@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 
-class IPMIQueueFlush extends Command
+class IPMIProcessFlush extends Command
 {
     protected $signature = 'ipmi:flush';
     protected $description = 'Xoá toàn bộ queue đang chờ (Redis hoặc database)';
