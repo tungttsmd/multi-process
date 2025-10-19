@@ -13,33 +13,67 @@ const btnPowerReset = document.getElementById('btnPowerReset');
 
 // State
 let currentServerId = null;
+let serverData = [];
 
-// Initialize the grid
-function initializeGrid() {
+// CSRF helper
+function getCsrfToken() {
+    const el = document.querySelector('meta[name="csrf-token"]');
+    return el ? el.getAttribute('content') : '';
+}
+
+// Fetch server data
+async function fetchServerData() {
+    try {
+        const response = await fetch('/api/sensors');
+        const result = await response.json();
+
+        if (result.success && Array.isArray(result.data)) {
+            serverData = result.data;
+            updateGrid();
+        } else {
+            console.error('Invalid data format:', result);
+            // Initialize with empty data if the response is not in the expected format
+            serverData = [];
+            updateGrid();
+        }
+    } catch (error) {
+        console.error('Error fetching server data:', error);
+        // Initialize with empty data on error
+        serverData = [];
+        updateGrid();
+    }
+}
+
+// Update grid with server data
+function updateGrid() {
     grid.innerHTML = '';
 
-    for (let i = 0; i < TOTAL_CELLS; i++) {
+    // Render only the servers we actually have from backend
+    for (let i = 0; i < serverData.length; i++) {
         const serverId = `server-${i + 1}`;
         const col = (i % GRID_COLS) + 1;
         const row = Math.floor(i / GRID_COLS) + 1;
 
-        // Generate random data for demo
-        const cpu0Temp = Math.floor(Math.random() * 30) + 30; // 30-60°C
-        const cpu1Temp = Math.floor(Math.random() * 30) + 30;
-        const cpu0Fan = Math.floor(Math.random() * 3000) + 3000; // 3000-6000 RPM
-        const cpu1Fan = Math.floor(Math.random() * 3000) + 3000;
+        const server = serverData[i] || {};
+        const metrics = {
+            cpu0Temp: server.cpu0_temp ?? 'N/A',
+            cpu1Temp: server.cpu1_temp ?? 'N/A',
+            cpu0Fan: server.cpu0_fan ?? 'N/A',
+            cpu1Fan: server.cpu1_fan ?? 'N/A',
+            status: server.status ?? 'unknown'
+        };
 
         const serverElement = createServerElement(serverId, {
-            name: `Server ${i + 1}`,
+            name: server.name || `Server ${i + 1}`,
+            ip: server.ip || null,
             position: { row, col },
-            status: 'online',
-            metrics: {
-                cpu0Temp,
-                cpu1Temp,
-                cpu0Fan,
-                cpu1Fan
-            }
+            status: metrics.status,
+            metrics
         });
+
+        // Optional: if your CSS uses CSS Grid positioning, set it here
+        // serverElement.style.gridColumn = col;
+        // serverElement.style.gridRow = row;
 
         grid.appendChild(serverElement);
     }
@@ -58,12 +92,15 @@ function createServerElement(id, data) {
     const serverElement = document.createElement('div');
     serverElement.className = `server-cell ${tempStatus} ${fanStatus}`;
     serverElement.dataset.id = id;
+    serverElement.dataset.ip = data.ip || '';
+    serverElement.dataset.name = name || '';
 
-    // Server content - simplified to show server number, temperatures and fan speeds
+    // Server content - simplified to show server name, temperatures and fan speeds
     const serverNumber = parseInt(id.replace('server-', '')); // Get the 1-based server number
+    const serverName = data.name || `Server ${serverNumber}`; // Use server name or fallback to number
     serverElement.innerHTML = `
         <div class="flex justify-between items-center">
-            <h3 class="text-xl font-bold">${serverNumber}</h3>
+            <h3 class="text-xl font-bold" title="${data.ip || 'N/A'}">${serverName}</h3>
             <button class="power-button" data-server="${id}" title="Power Control">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -73,20 +110,20 @@ function createServerElement(id, data) {
 
         <div class="mt-2 space-y-1 text-sm">
             <div class="flex items-center justify-between">
-                <span>CPU0: ${cpu0Temp}°C</span>
-                <span class="status-indicator ${getStatusClass('temp', cpu0Temp)}"></span>
+                <span>CPU0: ${cpu0Temp}${typeof cpu0Temp === 'number' ? '°C' : ''}</span>
+                ${typeof cpu0Temp === 'number' ? `<span class="status-indicator ${getStatusClass('temp', cpu0Temp)}"></span>` : ''}
             </div>
             <div class="flex items-center justify-between">
-                <span>CPU1: ${cpu1Temp}°C</span>
-                <span class="status-indicator ${getStatusClass('temp', cpu1Temp)}"></span>
+                <span>CPU1: ${cpu1Temp}${typeof cpu1Temp === 'number' ? '°C' : ''}</span>
+                ${typeof cpu1Temp === 'number' ? `<span class="status-indicator ${getStatusClass('temp', cpu1Temp)}"></span>` : ''}
             </div>
             <div class="flex items-center justify-between">
-                <span>FAN0: ${cpu0Fan}</span>
-                <span class="status-indicator ${getStatusClass('fan', cpu0Fan)}"></span>
+                <span>FAN0: ${cpu0Fan}${typeof cpu0Fan === 'number' ? ' RPM' : ''}</span>
+                ${typeof cpu0Fan === 'number' ? `<span class="status-indicator ${getStatusClass('fan', cpu0Fan)}"></span>` : ''}
             </div>
             <div class="flex items-center justify-between">
-                <span>FAN1: ${cpu1Fan}</span>
-                <span class="status-indicator ${getStatusClass('fan', cpu1Fan)}"></span>
+                <span>FAN1: ${cpu1Fan}${typeof cpu1Fan === 'number' ? ' RPM' : ''}</span>
+                ${typeof cpu1Fan === 'number' ? `<span class="status-indicator ${getStatusClass('fan', cpu1Fan)}"></span>` : ''}
             </div>
         </div>
 
@@ -161,7 +198,7 @@ function handlePowerButtonClick(e) {
     }
 }
 
-function handlePowerAction(e) {
+async function handlePowerAction(e) {
     const button = e.target.closest('[data-action]');
     if (!button) return;
 
@@ -174,21 +211,48 @@ function handlePowerAction(e) {
     }
 
     const serverId = serverElement.dataset.id;
-    const actionMap = {
+    const ip = serverElement.dataset.ip;
+    const name = serverElement.dataset.name || serverId;
+    const actionLabel = {
         'power-on': 'Power On',
         'power-off': 'Power Off',
         'reset': 'Reset'
     };
+    const actionValue = {
+        'power-on': 'on',
+        'power-off': 'off',
+        'reset': 'reset'
+    }[action];
 
-    if (confirm(`Are you sure you want to ${actionMap[action]} ${serverId}?`)) {
-        // Here you would typically make an API call to perform the action
-        console.log(`${actionMap[action]} ${serverId}`);
+    if (!ip) {
+        alert('Missing host IP for this server.');
+        return;
+    }
 
-        // Simulate state change
-        if (action === 'power-off') {
-            serverElement.classList.add('bg-gray-100');
-        } else if (action === 'power-on') {
-            serverElement.classList.remove('bg-gray-100');
+    if (confirm(`Are you sure you want to ${actionLabel[action]} ${name} (${ip})?`)) {
+        try {
+            const res = await fetch('/api/power', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': getCsrfToken()
+                },
+                body: JSON.stringify({ action: actionValue, ip })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                alert(`Power command failed: ${data.error || 'Unknown error'}`);
+            } else {
+                // Optionally reflect state in UI
+                if (action === 'power-off') {
+                    serverElement.classList.add('bg-gray-100');
+                } else if (action === 'power-on') {
+                    serverElement.classList.remove('bg-gray-100');
+                }
+            }
+        } catch (err) {
+            console.error('Power command error', err);
+            alert('Failed to send power command.');
         }
     }
 
@@ -200,13 +264,13 @@ function handlePowerAction(e) {
 function highlightServers(searchTerm) {
     const serverElements = document.querySelectorAll('.server-cell');
     let firstMatch = null;
-    
+
     serverElements.forEach(server => {
         const serverNumber = server.dataset.id.replace('server-', '');
-        
+
         // Check if server number starts with the search term
         const isMatch = searchTerm !== '' && serverNumber.startsWith(searchTerm);
-        
+
         // Toggle highlight class
         if (isMatch) {
             server.classList.add('highlighted');
@@ -220,22 +284,25 @@ function highlightServers(searchTerm) {
     });
 }
 
+// Refresh data every 5 seconds
+setInterval(fetchServerData, 5000);
+
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize the grid
-    initializeGrid();
-    
+    // Initialize the grid with server data
+    fetchServerData();
+
     // Add search functionality
     const searchInput = document.getElementById('serverSearch');
     if (searchInput) {
         let searchTimeout;
-        
+
         searchInput.addEventListener('input', (e) => {
             const searchTerm = e.target.value.trim();
-            
+
             // Clear previous timeout
             clearTimeout(searchTimeout);
-            
+
             // Set a new timeout to avoid too many re-renders
             searchTimeout = setTimeout(() => {
                 if (searchTerm === '') {
@@ -253,7 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }, 200); // 200ms debounce
         });
-        
+
         // Clear highlights when clicking the clear button (if present)
         searchInput.addEventListener('search', () => {
             if (searchInput.value === '') {

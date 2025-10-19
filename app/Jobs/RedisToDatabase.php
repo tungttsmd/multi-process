@@ -42,7 +42,6 @@ class RedisToDatabase implements ShouldQueue
             Log::channel($this->channelLogFile)->info('Status: ' . $statusRaw);
 
 
-
             DB::table('sensors')
                 ->where('ip', $this->host_ip)
                 ->update([

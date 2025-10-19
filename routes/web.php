@@ -1,16 +1,62 @@
 <?php
 
+use App\Http\Controllers\SensorFetcher;
 use App\Jobs\TestJob;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 use Livewire\Volt\Volt;
 use Illuminate\Support\Facades\View;
+use Symfony\Component\Process\Process;
+use Illuminate\Http\Request;
 
-Route::get('/ping', function () {
-    return "Ping đang chạy qua queue!";
-});
 
+// API endpoint for sensor data
+Route::get('/api/sensors', function () {
+    $sensorFetcher = new SensorFetcher();
+    return $sensorFetcher->all();
+})->middleware(['auth']);
+
+// Power control API
+// Route::post('/api/power', function (Request $request) {
+//     $action = $request->input('action');
+//     $ip = $request->input('ip');
+
+//     if (!in_array($action, ['on', 'off', 'reset'], true) || empty($ip)) {
+//         return response()->json([
+//             'success' => false,
+//             'error' => 'Invalid payload. Expecting action in [on, off, reset] and ip.'
+//         ], 422);
+//     }
+
+//     $phpBin = PHP_BINARY ?: 'php';
+//     $cmd = [$phpBin, 'artisan', 'ipmi:power', $action . ':' . $ip];
+
+//     try {
+//         $process = new Process($cmd, base_path());
+//         $process->setTimeout(60);
+//         $process->run();
+
+//         if (!$process->isSuccessful()) {
+//             return response()->json([
+//                 'success' => false,
+//                 'error' => trim($process->getErrorOutput()) ?: 'Command failed',
+//                 'output' => trim($process->getOutput()),
+//             ], 500);
+//         }
+
+//         return response()->json([
+//             'success' => true,
+//             'output' => trim($process->getOutput()),
+//         ]);
+//     } catch (\Throwable $e) {
+//         return response()->json([
+//             'success' => false,
+//             'error' => $e->getMessage(),
+//         ], 500);
+//     }
+// })->middleware(['auth']);
 
 // IPMI Grid View
 Route::get('/ipmi-grid', function () {
