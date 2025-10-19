@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\SensorFetcher;
+use App\Http\Controllers\StatusFetcher;
 use App\Jobs\TestJob;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
@@ -24,14 +25,20 @@ Route::get('/api/sensors', function () {
     return $sensorFetcher->all();
 })->middleware(['auth']);
 
+// Lệnh sensor auto (fetch - cấm xóa) của /ipmi-grid
+Route::get('/api/statuses', function () {
+    $statusFetcher = new StatusFetcher();
+    return $statusFetcher->all();
+})->middleware(['auth']);
+
 // Lệnh sensor fetch cụ thể
 Route::get('/api/redis/sensor/{ip}', function ($ip){
     $key = "ipmi_sensor:".str_replace('.','_',$ip);
     Artisan::call('redis:fetch '. $key);
-     $output = Artisan::output();
+    $output = Artisan::output();
 
     return response()->json([
-        'status' => 'ok',
+        'status' => 'success',
         'key' => $key,
         'output' => $output,
     ]);
@@ -41,28 +48,27 @@ Route::get('/api/redis/sensor/{ip}', function ($ip){
 Route::get('/api/redis/status/{ip}', function ($ip){
     $key = "ipmi_status:".str_replace('.','_',$ip);
     Artisan::call('redis:fetch '. $key);
-     $output = Artisan::output();
+    $output = Artisan::output();
 
     return response()->json([
-        'status' => 'ok',
+        'status' => 'success',
         'key' => $key,
         'output' => $output,
     ]);
-})->name('status');
+})->name('power');
 
 // Lệnh ipmi power
 Route::get('/api/ipmi/power/{ip}/{action}', function ($ip,$action){
-    $key = "ipmi_sensor:".str_replace('.','_',$ip);
-    Artisan::call('ipmi:power '. "$action:$key");
-     $output = Artisan::output();
+    Artisan::call('ipmi:power '. "$action:$ip");
+    $output = Artisan::output();
 
     return response()->json([
-        'status' => 'ok',
+        'status' => 'success',
         'action' => $action,
-        'key' => $key,
+        'ip' => $ip,
         'output' => $output,
     ]);
-});
+})->name('status');
 
 // Power control API
 // Route::post('/api/power', function (Request $request) {

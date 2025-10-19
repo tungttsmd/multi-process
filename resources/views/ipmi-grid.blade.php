@@ -24,6 +24,10 @@
                 <div class="header-controls">
                     <div class="flex items-center space-x-1 md:space-x-2">
 
+                        {{-- start: top bar search count --}}
+                        <small class="text-gray-600" style="display: none;">Tìm thấy <span data-search-count>0</span> kết quả</small>
+                        {{-- end: top bar search count --}}
+
                         {{-- start: top bar button --}}
                         <button id="btnReset" class="text-gray-500 rounded-full hover:text-gray-700 hover:bg-gray-100"
                             title="Reset">

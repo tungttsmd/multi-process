@@ -139,36 +139,14 @@ main {
 
 /* Highlighted server cell */
 .server-cell.highlighted {
-    background-color: rgba(59, 130, 246, 0.2) !important;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.8);
     z-index: 10;
-    position: relative;
-    transition: all 0.2s ease-in-out;
+    outline: 0.4rem solid orange;
 }
 
 /* Make the server number more prominent when highlighted */
 .server-cell.highlighted h3 {
     color: #1d4ed8;
-    font-size: 1.5rem;
-    text-shadow: 0 0 8px rgba(29, 78, 216, 0.3);
-}
-
-/* Add a subtle glow effect */
-.server-cell.highlighted::after {
-    content: "";
-    position: absolute;
-    top: -2px;
-    left: -2px;
-    right: -2px;
-    bottom: -2px;
-    border-radius: 0.5rem;
-    background: linear-gradient(
-        45deg,
-        rgba(59, 130, 246, 0.2),
-        rgba(99, 102, 241, 0.2)
-    );
-    z-index: -1;
-    animation: none;
+    font-weight: bold;
 }
 
 .container {
@@ -251,21 +229,22 @@ main {
 }
 
 .server-cell.high-temp {
-    background-color: #fef2f2;
+    background-color: #fffbeb;
     border-left: 4px solid #ef4444;
 }
 
-.server-cell.low-fan {
+/* .server-cell.low-fan {
     background-color: #fffbeb;
     border-left: 4px solid #f59e0b;
-}
+} */
 
 .server-cell.critical {
     background-color: #fee2e2;
     border-left: 4px solid #b91c1c;
 }
 
-.server-cell .power-button, .server-cell .detail-button {
+.server-cell .power-button,
+.server-cell .detail-button {
     background: rgba(0, 0, 0, 0.05);
     border: none;
     border-radius: 50%;
@@ -280,21 +259,25 @@ main {
     color: #4b5563;
 }
 
-.server-cell .power-button:hover, .server-cell .detail-button:hover {
+.server-cell .power-button:hover,
+.server-cell .detail-button:hover {
     background: rgba(0, 0, 0, 0.1);
     transform: scale(1.1);
     color: #1f2937;
 }
 
-.server-cell:hover .power-button, .server-cell:hover .detail-button {
+.server-cell:hover .power-button,
+.server-cell:hover .detail-button {
     opacity: 1;
 }
 
-.server-cell .power-button:hover, .server-cell .detail-button:hover {
+.server-cell .power-button:hover,
+.server-cell .detail-button:hover {
     background-color: #d1d5db;
 }
 
-.server-cell .power-button svg, .server-cell .detail-button svg {
+.server-cell .power-button svg,
+.server-cell .detail-button svg {
     width: 1rem;
     height: 1rem;
     color: #4b5563;
@@ -488,13 +471,29 @@ main {
 
 /* Status indicators */
 .status-ok {
-    background-color: #10b981;
+    background-color: #6ee7b7;
 }
 
 .status-warning {
-    background-color: #f59e0b;
+    background-color: #fcd34d;
 }
 
 .status-critical {
     background-color: #ef4444;
 }
+.status-indicator {
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 9999px;
+    margin-left: 0.5rem;
+    display: inline-block;
+}
+.online {
+    background-color: #10b981;
+} /* Xanh lá */
+.offline {
+    background-color: #9ca3af;
+} /* Xám */
+.danger {
+    background-color: #ef4444;
+} /* Đỏ */

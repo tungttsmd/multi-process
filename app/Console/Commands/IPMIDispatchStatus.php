@@ -25,7 +25,7 @@ class IPMIDispatchStatus extends Command
 
             foreach ($hosts as $index => $host) {
                 dispatch(new StatusCrawler($host->ip, $host->username, $host->password))
-                    ->onQueue('processor_status_' . (($index % 8) + 1));
+                    ->onQueue('processor_status_' . (($index % 4) + 1));
                 $this->success("Đã dispatch StatusCrawler cho {$host->ip}");
             }
 
