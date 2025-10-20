@@ -20,7 +20,8 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
-        $this->call('SyncHostToSensorSeeder');
-        $this->call('SyncHostToSensorSeeder');
+        $this->call(HostSeeder::class);
+        $this->call(SyncHostToSensorSeeder::class);
+        $this->call(SyncHostToStatusSeeder::class);
     }
 }

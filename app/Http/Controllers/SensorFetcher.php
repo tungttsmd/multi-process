@@ -8,7 +8,12 @@ use Illuminate\Support\Facades\DB;
 class SensorFetcher extends Controller
 {
     public function all(){
-        $hosts = DB::table('hosts')->select('ip', 'name')->get();
+        // Lấy danh sách host và sắp xếp theo tên
+        $hosts = DB::table('hosts')
+            ->select('ip', 'name')
+            ->orderBy('name')
+            ->get();
+            
         $results = [];
 
         foreach ($hosts as $host) {
@@ -39,6 +44,11 @@ class SensorFetcher extends Controller
             }
         }
 
+        // Sắp xếp kết quả theo tên (trường hợp có thêm logic xử lý sau này)
+        usort($results, function($a, $b) {
+            return strcmp($a['name'], $b['name']);
+        });
+
         return response()->json([
             'success' => true,
             'data' => $results,
@@ -46,18 +56,43 @@ class SensorFetcher extends Controller
         ]);
     }
 
-    public function get($ip)  {
+   public function get($ip) {
     $data = DB::table('sensors')
         ->select('log')
         ->where('ip', $ip)
         ->first();
+
     if (!$data) {
-        return response()->json(['error' => "Không tìm thấy log cho $ip"], 404);
+        return (object)[
+            'status' => 'error',
+            'message' => "Không tìm thấy log cho $ip",
+        ];
     }
 
-    $json = json_decode(trim($data->log));
-    $return = json_decode($json);
-    return $return;
+    try {
+        // Dữ liệu trong cột 'log' có thể là JSON gốc hoặc JSON bọc trong chuỗi
+        $log = trim($data->log);
 
+        // Nếu nó là chuỗi JSON lồng, decode 1 lần
+        $decoded = json_decode($log, false);
+
+        // Nếu JSON bị bọc 2 lớp (ví dụ: "\"{...}\""), decode thêm 1 lần
+        if (is_string($decoded)) {
+            $decoded = json_decode($decoded, false);
+        }
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \Exception(json_last_error_msg());
+        }
+
+        return $decoded;
+    } catch (\Exception $e) {
+        \Log::error("JSON parse error for {$ip}: " . $e->getMessage());
+        return (object)[
+            'status' => 'error',
+            'message' => 'Invalid JSON data',
+        ];
     }
 }
+}
+

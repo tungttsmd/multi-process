@@ -15,8 +15,7 @@ use Illuminate\Support\Facades\Artisan;
 
 
 Route::get('/testjson', function () {
-    $json = "{\n    \"ip\": \"192.168.6.118\",\n    \"timestamp\": \"2025-10-19 20:53:00\",\n    \"status\": \"success\",\n    \"message\": \"Sensor data fetched successfully\",\n    \"data\": {\n        \"CPU0_Temp\": 56,\n        \"CPU1_Temp\": 69,\n        \"CPU0_FAN\": 0,\n        \"CPU1_FAN\": 1040\n    }\n}";
-    dd(json_decode($json)->status);
+return json_decode(file_get_contents(storage_path('app/hosts.json')), true);
 });
 
 // Lệnh sensor auto (fetch - cấm xóa) của /ipmi-grid

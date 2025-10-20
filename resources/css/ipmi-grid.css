@@ -320,10 +320,10 @@ main {
 
 .server-cell .power-options {
     position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    bottom: 0.5rem;
-    left: 0.5rem;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     background-color: #ffffff;
     border-radius: 0.5rem;
     display: flex;
@@ -342,8 +342,8 @@ main {
 
 .server-cell .power-options .close-button {
     position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
+    top: 1rem;
+    right: 1rem;
     width: 1.75rem;
     height: 1.75rem;
     display: flex;

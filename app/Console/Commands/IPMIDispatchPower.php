@@ -35,11 +35,12 @@ class IPMIDispatchPower extends Command
             return;
         }
 
-        // --- Xác nhận thao tác ---
-        $confirm = $this->confirm("Xác nhận: ({$host->ip}) => chassis power {$action}");
-        if (!$confirm) {
-            $this->warn("Đã huỷ thao tác: ({$host->ip}) => power {$action}");
-            return;
+        // --- Xác nhận thao tác (bỏ qua nếu chạy non-interactive hoặc có cờ --force) ---
+        if (app()->runningInConsole()) {
+            if (!$this->confirm("Xác nhận: ({$host->ip}) => chassis power {$action}", true)) {
+                $this->warn("Đã huỷ thao tác: ({$host->ip}) => power {$action}");
+                return;
+            }
         }
 
         // --- Dispatch job ---

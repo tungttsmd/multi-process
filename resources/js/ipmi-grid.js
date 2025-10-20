@@ -14,6 +14,8 @@ const btnPowerReset = document.getElementById('btnPowerReset');
 // State
 let currentServerId = null;
 let serverData = [];
+let currentSearchTerm = ''; // Track current search term
+let openPowerOptionsIp = null; // Track which server has power options open (using IP as unique identifier)
 
 // CSRF helper
 function getCsrfToken() {
@@ -64,15 +66,17 @@ async function fetchServerData() {
 
 // Update grid with server data
 function updateGrid() {
+    // Store the current scroll position
+    const scrollPosition = window.scrollY;
+
     grid.innerHTML = '';
 
     // Render only the servers we actually have from backend
     for (let i = 0; i < serverData.length; i++) {
+        const server = serverData[i] || {};
         const serverId = `server-${i + 1}`;
         const col = (i % GRID_COLS) + 1;
         const row = Math.floor(i / GRID_COLS) + 1;
-
-        const server = serverData[i] || {};
         const metrics = {
             cpu0Temp: server.cpu0_temp ?? 'N/A',
             cpu1Temp: server.cpu1_temp ?? 'N/A',
@@ -98,6 +102,28 @@ function updateGrid() {
 
         grid.appendChild(serverElement);
     }
+
+    // Reapply search highlights and power options state
+    setTimeout(() => {
+        // Restore scroll position
+        window.scrollTo(0, scrollPosition);
+
+        if (currentSearchTerm) {
+            highlightServers(currentSearchTerm);
+        }
+
+        // Reopen power options if it was open before refresh
+        if (openPowerOptionsIp) {
+            // Find the server element with matching IP
+            const serverElements = document.querySelectorAll('.server-cell');
+            for (const element of serverElements) {
+                if (element.dataset.ip === openPowerOptionsIp) {
+                    element.classList.add('show-options');
+                    break;
+                }
+            }
+        }
+    }, 10);
 }
 
 // Create a server cell element
@@ -176,7 +202,7 @@ function createServerElement(id, data) {
         <div class="power-options">
 
             <div class="flex justify-between items-center mb-2">
-                <h2 class="font-medium m-0">Power ${serverName}</h2>
+                <h2 class="font-medium pt-1">Power ${serverName}</h2>
 
                 <button class="close-button" data-action="cancel" title="Close">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -203,7 +229,7 @@ function createServerElement(id, data) {
                 </a>
 
             </div>
-                <small class="font-semibold pt-2 ${powerClass === 'online' ? 'text-green-500' : powerClass === 'offline' ? 'text-gray-400' : 'text-red-500'}">${data.ip}</small>
+                <small class="font-semibold pt-1 ${powerClass === 'online' ? 'text-green-500' : powerClass === 'offline' ? 'text-gray-400' : 'text-red-500'}">${data.ip}</small>
 
         </div>
     `;
@@ -242,17 +268,25 @@ function handlePowerButtonClick(e) {
     const button = e.target.closest('.power-button');
     if (!button) return;
 
-    // Close any open power options first
+    const serverElement = button.closest('.server-cell');
+    if (!serverElement) return;
+
+    // Toggle the clicked server's power options
+    const isOpening = !serverElement.classList.contains('show-options');
+
+    // Close any other open power options
     document.querySelectorAll('.server-cell').forEach(el => {
-        if (el !== button.closest('.server-cell')) {
+        if (el !== serverElement) {
             el.classList.remove('show-options');
         }
     });
 
-    // Toggle the clicked server's power options
-    const serverElement = button.closest('.server-cell');
-    if (serverElement) {
-        serverElement.classList.toggle('show-options');
+    // Update the openPowerOptionsIp
+    if (isOpening) {
+        openPowerOptionsIp = serverElement.dataset.ip;
+        serverElement.classList.add('show-options');
+    } else {
+        openPowerOptionsIp = null;
     }
 }
 
@@ -366,6 +400,23 @@ async function handlePowerAction(e) {
 function highlightServers(searchTerm) {
     const serverElements = document.querySelectorAll('.server-cell');
     let firstMatch = null;
+
+    // Store the current search term
+    currentSearchTerm = searchTerm;
+
+    // If search term is empty, clear all highlights and return
+    if (!searchTerm.trim()) {
+        serverElements.forEach(server => {
+            server.classList.remove('highlighted');
+        });
+        // Hide search count when search is empty
+        const searchCountContainer = document.querySelector('[data-search-count]')?.closest('small');
+        if (searchCountContainer) {
+            searchCountContainer.style.display = 'none';
+        }
+        return;
+    }
+
     const searchLower = searchTerm.toLowerCase();
 
     serverElements.forEach(server => {
@@ -414,44 +465,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Set a new timeout to avoid too many re-renders
             searchTimeout = setTimeout(() => {
-                if (searchTerm === '') {
-                    // Clear all highlights if search is empty
-                    document.querySelectorAll('.server-cell').forEach(el => {
-                        el.classList.remove('highlighted');
-                    });
-                    // Hide search count when search is empty
-                    const searchCountContainer = document.querySelector('[data-search-count]')?.closest('small');
-                    if (searchCountContainer) {
+                highlightServers(searchTerm);
+                // Scroll to the first matching server with offset
+                const matchedServers = document.querySelectorAll('.server-cell.highlighted');
+                const matchCount = matchedServers.length;
+
+                // Update search count
+                const searchCountElement = document.querySelector('[data-search-count]');
+                const searchCountContainer = searchCountElement?.closest('small');
+
+                if (searchCountElement) {
+                    searchCountElement.textContent = matchCount;
+                    // Show/hide based on search term and matches
+                    if (searchTerm && searchCountContainer) {
+                        searchCountContainer.style.display = 'inline';
+                    } else if (searchCountContainer) {
                         searchCountContainer.style.display = 'none';
                     }
-                } else {
-                    highlightServers(searchTerm);
-                    // Scroll to the first matching server with offset
-                    const matchedServers = document.querySelectorAll('.server-cell.highlighted');
-                    const matchCount = matchedServers.length;
-                    
-                    // Update search count
-                    const searchCountElement = document.querySelector('[data-search-count]');
-                    const searchCountContainer = searchCountElement?.closest('small');
-                    
-                    if (searchCountElement) {
-                        searchCountElement.textContent = matchCount;
-                        // Show/hide based on search term and matches
-                        if (searchTerm && searchCountContainer) {
-                            searchCountContainer.style.display = 'inline';
-                        } else if (searchCountContainer) {
-                            searchCountContainer.style.display = 'none';
-                        }
-                    }
-                    
-                    // Scroll to first match if any
-                    if (matchedServers.length > 0) {
-                        const yOffset = -220; // Adjust this value as needed
-                        const y = matchedServers[0].getBoundingClientRect().top + window.pageYOffset + yOffset;
-                        window.scrollTo({ top: y, behavior: 'smooth' });
-                    }
                 }
-            }, 200); // 200ms debounce
+
+                // Scroll to first match if any
+                if (matchedServers.length > 0) {
+                    const yOffset = -220; // Adjust this value as needed
+                    const y = matchedServers[0].getBoundingClientRect().top + window.pageYOffset + yOffset;
+                    window.scrollTo({ top: y, behavior: 'smooth' });
+                }
+            }
+                , 200); // 200ms debounce
         });
 
         // Clear highlights when clicking the clear button (if present)
@@ -492,6 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.server-cell').forEach(el => {
                 el.classList.remove('show-options');
             });
+            openPowerOptionsIp = null;
         }
     });
 
@@ -501,6 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.server-cell').forEach(el => {
                 el.classList.remove('show-options');
             });
+            openPowerOptionsIp = null;
         }
     });
 });
