@@ -230,7 +230,7 @@ main {
 
 .server-cell.high-temp {
     background-color: #fffbeb;
-    border-left: 4px solid #ef4444;
+    border-left: 4px solid #f59e0b;
 }
 
 /* .server-cell.low-fan {

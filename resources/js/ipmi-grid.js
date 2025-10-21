@@ -239,8 +239,8 @@ function createServerElement(id, data) {
 
 // Helper functions
 function getTemperatureStatus(temp) {
-    if (temp > 75) return 'critical';
-    if (temp > 70) return 'high-temp';
+    if (temp >= 80) return 'critical';
+    if (temp > 75) return 'high-temp';
     return '';
 }
 
@@ -251,8 +251,8 @@ function getFanStatus(fanSpeed) {
 
 function getStatusClass(type, value) {
     if (type === 'temp') {
-        if (value > 75) return 'status-critical';
-        if (value > 70) return 'status-warning';
+        if (value >= 80) return 'status-critical';
+        if (value > 75) return 'status-warning';
         return 'status-ok';
     } else if (type === 'fan') {
         if (value < 1040) return 'status-warning';
