@@ -1,18 +1,10 @@
 // Configuration
 const GRID_COLS = 20;
-const GRID_ROWS = 8;
-const TOTAL_CELLS = GRID_COLS * GRID_ROWS;
 
 // DOM Elements
 const grid = document.getElementById('ipmi-grid');
-const powerModal = document.getElementById('powerModal');
-const btnCloseModal = document.getElementById('btnCloseModal');
-const btnPowerOn = document.getElementById('btnPowerOn');
-const btnPowerOff = document.getElementById('btnPowerOff');
-const btnPowerReset = document.getElementById('btnPowerReset');
 
 // State
-let currentServerId = null;
 let serverData = [];
 let currentSearchTerm = ''; // Track current search term
 let openPowerOptionsIp = null; // Track which server has power options open (using IP as unique identifier)
@@ -23,46 +15,148 @@ function getCsrfToken() {
     return el ? el.getAttribute('content') : '';
 }
 
+// Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize the grid with server data
+    fetchServerData();
+
+    // Add search functionality
+    const searchInput = document.getElementById('serverSearch');
+    if (searchInput) {
+        let searchTimeout;
+
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.trim();
+
+            // Clear previous timeout
+            clearTimeout(searchTimeout);
+
+            // Set a new timeout to avoid too many re-renders
+            searchTimeout = setTimeout(() => {
+                highlightServers(searchTerm);
+                // Scroll to the first matching server with offset
+                const matchedServers = document.querySelectorAll('.server-cell.highlighted');
+                const matchCount = matchedServers.length;
+
+                // Update search count
+                const searchCountElement = document.querySelector('[data-search-count]');
+                const searchCountContainer = searchCountElement?.closest('small');
+
+                if (searchCountElement) {
+                    searchCountElement.textContent = matchCount;
+                    // Show/hide based on search term and matches
+                    if (searchTerm && searchCountContainer) {
+                        searchCountContainer.style.display = 'inline';
+                    } else if (searchCountContainer) {
+                        searchCountContainer.style.display = 'none';
+                    }
+                }
+
+                // Scroll to first match if any
+                if (matchedServers.length > 0) {
+                    const yOffset = -220; // Adjust this value as needed
+                    const y = matchedServers[0].getBoundingClientRect().top + window.pageYOffset + yOffset;
+                    window.scrollTo({ top: y, behavior: 'smooth' });
+                }
+            }
+                , 200); // 200ms debounce
+        });
+
+        // Clear highlights when clicking the clear button (if present)
+        searchInput.addEventListener('search', () => {
+            if (searchInput.value === '') {
+                document.querySelectorAll('.server-cell').forEach(el => {
+                    el.classList.remove('highlighted');
+                });
+            }
+        });
+    }
+
+    // Event delegation for all clicks
+    document.addEventListener('click', (e) => {
+        // Handle close button click
+        if (e.target.closest('.close-button') || e.target.closest('[data-action="cancel"]')) {
+            const serverCell = e.target.closest('.server-cell');
+            if (serverCell) {
+                serverCell.classList.remove('show-options');
+            }
+            return;
+        }
+
+        // Handle power button click
+        if (e.target.closest('.power-button')) {
+            handlePowerButtonClick(e);
+            return;
+        }
+
+        // Handle detail button click
+        if (e.target.closest('.detail-button')) {
+            handleDetailClick(e);
+            return;
+        }
+
+        // Click outside - close all power options
+        if (!e.target.closest('.power-options') && !e.target.closest('.power-button')) {
+            document.querySelectorAll('.server-cell').forEach(el => {
+                el.classList.remove('show-options');
+            });
+            openPowerOptionsIp = null;
+        }
+    });
+
+    // Close power options when pressing Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.server-cell').forEach(el => {
+                el.classList.remove('show-options');
+            });
+            openPowerOptionsIp = null;
+        }
+    });
+});
+
+// Refresh data every 12.12 seconds
+// setInterval(fetchServerData, 12120);
 
 // Fetch server data song song
-async function fetchServerData() {
-    try {
-        // Gọi 2 API song song
-        const [resSensors, resStatuses] = await Promise.all([
-            fetch('/api/sensors'),
-            fetch('/api/statuses')
-        ]);
+// async function fetchServerData() {
+//     try {
+//         // Gọi 2 API song song
+//         const [resSensors, resPowers] = await Promise.all([
+//             fetch('/api/ipmi/sensor/fetch'),
+//             fetch('/api/ipmi/power/fetch')
+//         ]);
 
-        // Đọc JSON song song
-        const [sensorsResult, statusesResult] = await Promise.all([
-            resSensors.json(),
-            resStatuses.json()
-        ]);
+//         // Đọc JSON song song
+//         const [sensorsResult, powersResult] = await Promise.all([
+//             resSensors.json(),
+//             resPowers.json()
+//         ]);
 
-        if (sensorsResult.success && statusesResult.success) {
-            const combinedData = sensorsResult.data.map(sensor => {
-                const match = statusesResult.data.find(s => s.ip === sensor.ip);
-                const power = (match?.power ?? match?.data?.power ?? match?.cpu1_fan?.power) ?? 'N/A';
-                return {
-                    ...sensor,
-                    status: match ? match.status : 'unknown',
-                    power
-                };
-            });
+//         if (sensorsResult.success && powersResult.success) {
+//             const combinedData = sensorsResult.data.map(sensor => {
+//                 const match = powersResult.data.find(s => s.ip === sensor.ip);
+//                 const power = (match?.power ?? match?.data?.power ?? match?.cpu1_fan?.power) ?? 'N/A';
+//                 return {
+//                     ...sensor,
+//                     status: match ? match.status : 'unknown',
+//                     power
+//                 };
+//             });
 
-            serverData = combinedData;
-            updateGrid();
-        } else {
-            console.error('Invalid data format:', sensorsResult, statusesResult);
-            serverData = [];
-            updateGrid();
-        }
-    } catch (error) {
-        console.error('Error fetching server data:', error);
-        serverData = [];
-        updateGrid();
-    }
-}
+//             serverData = combinedData;
+//             updateGrid();
+//         } else {
+//             console.error('Invalid data format:', sensorsResult, powersResult);
+//             serverData = [];
+//             updateGrid();
+//         }
+//     } catch (error) {
+//         console.error('Error fetching server data:', error);
+//         serverData = [];
+//         updateGrid();
+//     }
+// }
 
 // Update grid with server data
 function updateGrid() {
@@ -84,8 +178,6 @@ function updateGrid() {
             cpu1Fan: server.cpu1_fan ?? 'N/A',
             status: server.status ?? 'unknown'
         };
-        console.log('======');
-        console.log(metrics);
 
         const serverElement = createServerElement(serverId, {
             name: server.name || `Server ${i + 1}`,
@@ -213,30 +305,67 @@ function createServerElement(id, data) {
 
 
             <div class="space-y-2">
-                <a href="/api/ipmi/power/${data.ip}/reset"
-                class="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-1.5 px-3 rounded text-sm block text-center">
+                <button onclick="powerAction('reset', '${data.ip}')" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-1.5 px-3 rounded text-sm block text-center">
                     Reset máy
-                </a>
+                </button>
 
-                <a href="/api/ipmi/power/${data.ip}/on"
-                class="w-full bg-green-500 hover:bg-green-600 text-white py-1.5 px-3 rounded text-sm block text-center">
+                <button onclick="powerAction('on', '${data.ip}')" class="w-full bg-green-500 hover:bg-green-600 text-white py-1.5 px-3 rounded text-sm block text-center">
                     Bật máy
-                </a>
+                </button>
 
-                <a href="/api/ipmi/power/${data.ip}/off"
-                class="w-full bg-red-500 hover:bg-red-600 text-white py-1.5 px-3 rounded text-sm block text-center">
+                <button onclick="powerAction('off', '${data.ip}')" class="w-full bg-red-500 hover:bg-red-600 text-white py-1.5 px-3 rounded text-sm block text-center">
                     Tắt máy
-                </a>
-
+                </button>
             </div>
-                <small class="font-semibold pt-1 ${powerClass === 'online' ? 'text-green-500' : powerClass === 'offline' ? 'text-gray-400' : 'text-red-500'}">${data.ip}</small>
 
+            <small class="font-semibold pt-1 ${powerClass === 'online' ? 'text-green-500' : powerClass === 'offline' ? 'text-gray-400' : 'text-red-500'}">${data.ip}</small>
         </div>
     `;
 
     return serverElement;
 }
 
+// Global powerAction function that works with or without Livewire
+window.powerAction = function (action, ip) {
+    console.log(`Power action: ${action} on ${ip}`);
+
+    // Try to use Livewire if available
+    if (window.Livewire && window.Livewire.emit) {
+        console.log('Using Livewire for power action');
+        window.Livewire.emit('powerAction', { action, ip });
+        return;
+    }
+};
+
+document.addEventListener('livewire:load', function () {
+    console.log('✅ Livewire is ready');
+
+    // Listen for power action results from Livewire component
+    window.Livewire.on('powerActionResult', (data) => {
+        console.log('Power action result:', data);
+        if (data.result?.status === 'success') {
+            alert(`${data.message.ip} ${data.message.action.toUpperCase()} OK\n${data.result.output || ''}`);
+        } else {
+            alert(`${data.message.ip} ${data.message.action.toUpperCase()} FAILED\n${data.result?.message || 'Unknown error'}`);
+        }
+    });
+    window.Livewire.on('powerFetchResult', (data) => {
+        console.log('Power fetch result:', data);
+        if (data.result?.status === 'success') {
+            alert(`${data.ip} ${data.action.toUpperCase()} OK\n${data.result.output || ''}`);
+        } else {
+            alert(`${data.ip} ${data.action.toUpperCase()} FAILED\n${data.result?.message || 'Unknown error'}`);
+        }
+    });
+    window.Livewire.on('sensorFetchResult', (data) => {
+        console.log('Sensor fetch result:', data);
+        if (data.result?.status === 'success') {
+            alert(`${data.ip} ${data.action.toUpperCase()} OK\n${data.result.output || ''}`);
+        } else {
+            alert(`${data.ip} ${data.action.toUpperCase()} FAILED\n${data.result?.message || 'Unknown error'}`);
+        }
+    });
+});
 // Helper functions
 function getTemperatureStatus(temp) {
     if (temp >= 80) return 'critical';
@@ -260,6 +389,7 @@ function getStatusClass(type, value) {
     }
     return '';
 }
+
 
 // Event Handlers
 function handlePowerButtonClick(e) {
@@ -315,7 +445,6 @@ async function handleDetailClick(e) {
             } else {
                 const out = typeof data.output === 'string' ? data.output : JSON.stringify(data, null, 2);
                 alert(`Details for ${name} (${ip}):\n\n${out}`);
-                console.log('Sensor details response:', data);
             }
         } catch (err) {
             console.error('Detail fetch error', err);
@@ -382,7 +511,6 @@ async function handlePowerAction(e) {
                 }
 
                 // Hiển thị dữ liệu sensor từ API
-                console.log(`${name} Sensor data:`, data);
                 alert(`✅ ${data.ip} - CPU0: ${data.output}°C, FAN0: ${data.status} RPM`);
             }
         } catch (err) {
@@ -443,109 +571,6 @@ function highlightServers(searchTerm) {
         }
     });
 }
-
-// Refresh data every 12 seconds
-setInterval(fetchServerData, 12000);
-
-// Event Listeners
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialize the grid with server data
-    fetchServerData();
-
-    // Add search functionality
-    const searchInput = document.getElementById('serverSearch');
-    if (searchInput) {
-        let searchTimeout;
-
-        searchInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.trim();
-
-            // Clear previous timeout
-            clearTimeout(searchTimeout);
-
-            // Set a new timeout to avoid too many re-renders
-            searchTimeout = setTimeout(() => {
-                highlightServers(searchTerm);
-                // Scroll to the first matching server with offset
-                const matchedServers = document.querySelectorAll('.server-cell.highlighted');
-                const matchCount = matchedServers.length;
-
-                // Update search count
-                const searchCountElement = document.querySelector('[data-search-count]');
-                const searchCountContainer = searchCountElement?.closest('small');
-
-                if (searchCountElement) {
-                    searchCountElement.textContent = matchCount;
-                    // Show/hide based on search term and matches
-                    if (searchTerm && searchCountContainer) {
-                        searchCountContainer.style.display = 'inline';
-                    } else if (searchCountContainer) {
-                        searchCountContainer.style.display = 'none';
-                    }
-                }
-
-                // Scroll to first match if any
-                if (matchedServers.length > 0) {
-                    const yOffset = -220; // Adjust this value as needed
-                    const y = matchedServers[0].getBoundingClientRect().top + window.pageYOffset + yOffset;
-                    window.scrollTo({ top: y, behavior: 'smooth' });
-                }
-            }
-                , 200); // 200ms debounce
-        });
-
-        // Clear highlights when clicking the clear button (if present)
-        searchInput.addEventListener('search', () => {
-            if (searchInput.value === '') {
-                document.querySelectorAll('.server-cell').forEach(el => {
-                    el.classList.remove('highlighted');
-                });
-            }
-        });
-    }
-
-    // Event delegation for all clicks
-    document.addEventListener('click', (e) => {
-        // Handle close button click
-        if (e.target.closest('.close-button') || e.target.closest('[data-action="cancel"]')) {
-            const serverCell = e.target.closest('.server-cell');
-            if (serverCell) {
-                serverCell.classList.remove('show-options');
-            }
-            return;
-        }
-
-        // Handle power button click
-        if (e.target.closest('.power-button')) {
-            handlePowerButtonClick(e);
-            return;
-        }
-
-        // Handle detail button click
-        if (e.target.closest('.detail-button')) {
-            handleDetailClick(e);
-            return;
-        }
-
-        // Click outside - close all power options
-        if (!e.target.closest('.power-options') && !e.target.closest('.power-button')) {
-            document.querySelectorAll('.server-cell').forEach(el => {
-                el.classList.remove('show-options');
-            });
-            openPowerOptionsIp = null;
-        }
-    });
-
-    // Close power options when pressing Escape key
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            document.querySelectorAll('.server-cell').forEach(el => {
-                el.classList.remove('show-options');
-            });
-            openPowerOptionsIp = null;
-        }
-    });
-});
 
 // Export for testing if needed
 if (typeof module !== 'undefined' && module.exports) {

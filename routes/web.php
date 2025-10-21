@@ -1,34 +1,35 @@
 <?php
 
+use App\Http\Controllers\PowerAction;
+use App\Http\Controllers\PowerFetcher;
 use App\Http\Controllers\SensorFetcher;
-use App\Http\Controllers\StatusFetcher;
-use App\Jobs\TestJob;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 use Livewire\Volt\Volt;
-use Illuminate\Support\Facades\View;
-use Symfony\Component\Process\Process;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+
+// ========= start Nguồn dữ liệu =========
+Route::get('/api/ipmi/power/fetch', function () {
+    $powerFetcher = new PowerFetcher();
+    return $powerFetcher->fetchAll();
+});
+
+Route::get('/api/ipmi/sensor/fetch', function () {
+    $sensorFetcher = new SensorFetcher();
+    return $sensorFetcher->fetchAll();
+});
+
+Route::get('/api/ipmi/power/{ip}/{action}', function ($ip,$action){
+    $powerAction = new PowerAction();
+    return $powerAction->action($ip, $action);
+});
+// ========= end Nguồn dữ liệu =========
+
 
 
 Route::get('/testjson', function () {
 return json_decode(file_get_contents(storage_path('app/hosts.json')), true);
 });
-
-// Lệnh sensor auto (fetch - cấm xóa) của /ipmi-grid
-Route::get('/api/sensors', function () {
-    $sensorFetcher = new SensorFetcher();
-    return $sensorFetcher->all();
-})->middleware(['auth']);
-
-// Lệnh sensor auto (fetch - cấm xóa) của /ipmi-grid
-Route::get('/api/statuses', function () {
-    $statusFetcher = new StatusFetcher();
-    return $statusFetcher->all();
-})->middleware(['auth']);
 
 // Lệnh sensor fetch cụ thể
 Route::get('/api/redis/sensor/{ip}', function ($ip){
@@ -57,17 +58,7 @@ Route::get('/api/redis/status/{ip}', function ($ip){
 })->name('power');
 
 // Lệnh ipmi power
-Route::get('/api/ipmi/power/{ip}/{action}', function ($ip,$action){
-    Artisan::call('ipmi:power '. "$action:$ip");
-    $output = Artisan::output();
 
-    return response()->json([
-        'status' => 'success',
-        'action' => $action,
-        'ip' => $ip,
-        'output' => $output,
-    ]);
-})->name('status');
 
 // Power control API
 // Route::post('/api/power', function (Request $request) {

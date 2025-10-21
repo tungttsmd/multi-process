@@ -2,97 +2,122 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class SensorFetcher extends Controller
 {
-    public function all(){
-        // Lấy danh sách host và sắp xếp theo tên
+
+    protected $table;
+
+    function __construct() {
+        $this->table = 'sensors';
+    }
+
+    public function fetchAll(){
         $hosts = DB::table('hosts')
             ->select('ip', 'name')
             ->orderBy('name')
             ->get();
-            
-        $results = [];
 
+        $results = $this->stepFetchAll($hosts);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $results,
+            'timestamp' => now()->toDateTimeString()
+        ]);
+    }
+
+    /**
+     * Fetch sensor data for a single host
+     * @param $ip
+     */
+    public function fetch($ip) {
+        $data = DB::table($this->table)
+            ->select('log')
+            ->where('ip', $ip)
+            ->first();
+
+        if (!$data) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Không tìm thấy dữ liệu cho $ip",
+                'data' => [],
+            ], 404);
+        }
+
+        return $this->decode($data->log);
+    }
+
+    /**
+     * Fetch all statuses
+     * @param $hosts
+     */
+    public function stepFetchAll($hosts) {
+        $results = [];
         foreach ($hosts as $host) {
             try {
-                $sensorData = $this->get($host->ip);
+                $sensorData = $this->fetch($host->ip);
 
                 if (isset($sensorData->data)) {
                     $results[] = [
                         'ip' => $host->ip,
-                        'name' => $host->name ?? $host->ip,
+                        'status' => 'success',
+                        'message' => 'ok',
                         'cpu0_temp' => $sensorData->data->CPU0_Temp ?? 'N/A',
                         'cpu1_temp' => $sensorData->data->CPU1_Temp ?? 'N/A',
                         'cpu0_fan' => $sensorData->data->CPU0_FAN ?? 'N/A',
                         'cpu1_fan' => $sensorData->data->CPU1_FAN ?? 'N/A',
-                        'status' => $sensorData->status ?? 'unknown',
                         'last_updated' => now()->toDateTimeString()
                     ];
                 }
             } catch (\Exception $e) {
                 $results[] = [
                     'ip' => $host->ip,
-                    'name' => $host->name ?? $host->ip,
-                    'error' => 'Failed to fetch sensor data',
-                    'status' => 'error'
+                    'status' => 'error',
+                    'message' => 'Something went wrong',
+                    'cpu0_temp' => 'N/A',
+                    'cpu1_temp' => 'N/A',
+                    'cpu0_fan' => 'N/A',
+                    'cpu1_fan' => 'N/A',
+                    'last_updated' => now()->toDateTimeString(),
+
                 ];
-                // Log the error for debugging
-                \Log::error("Error fetching sensor data for {$host->ip}: " . $e->getMessage());
             }
         }
 
-        // Sắp xếp kết quả theo tên (trường hợp có thêm logic xử lý sau này)
-        usort($results, function($a, $b) {
-            return strcmp($a['name'], $b['name']);
-        });
-
-        return response()->json([
-            'success' => true,
-            'data' => $results,
-            'timestamp' => now()->toDateTimeString()
-        ]);
+       return $results;
     }
 
-   public function get($ip) {
-    $data = DB::table('sensors')
-        ->select('log')
-        ->where('ip', $ip)
-        ->first();
+    /**
+     * Decode JSON data
+     * @param $json
+     */
+    protected function decode($json) {
+        try {
+            // Dữ liệu trong cột 'log' có thể là JSON gốc hoặc JSON bọc trong chuỗi
+            $log = trim($json);
 
-    if (!$data) {
-        return (object)[
-            'status' => 'error',
-            'message' => "Không tìm thấy log cho $ip",
-        ];
-    }
+            // Nếu nó là chuỗi JSON lồng, decode 1 lần
+            $decoded = json_decode($log, false);
 
-    try {
-        // Dữ liệu trong cột 'log' có thể là JSON gốc hoặc JSON bọc trong chuỗi
-        $log = trim($data->log);
+            // Nếu JSON bị bọc 2 lớp (ví dụ: "\"{...}\""), decode thêm 1 lần
+            if (is_string($decoded)) {
+                $decoded = json_decode($decoded, false);
+            }
 
-        // Nếu nó là chuỗi JSON lồng, decode 1 lần
-        $decoded = json_decode($log, false);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new \Exception(json_last_error_msg());
+            }
 
-        // Nếu JSON bị bọc 2 lớp (ví dụ: "\"{...}\""), decode thêm 1 lần
-        if (is_string($decoded)) {
-            $decoded = json_decode($decoded, false);
+            return $decoded;
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Invalid JSON data: '.$e->getMessage(),
+                'data' => [],
+            ], 500);
         }
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new \Exception(json_last_error_msg());
-        }
-
-        return $decoded;
-    } catch (\Exception $e) {
-        \Log::error("JSON parse error for {$ip}: " . $e->getMessage());
-        return (object)[
-            'status' => 'error',
-            'message' => 'Invalid JSON data',
-        ];
     }
-}
 }
 
