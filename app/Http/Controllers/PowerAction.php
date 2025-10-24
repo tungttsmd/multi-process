@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Artisan;
 class PowerAction extends Controller
 {
     public function action($ip, $action) {
-        Artisan::call('ipmi:power '. "$action:$ip");
+        Artisan::call('ipmi:execute '. "$action:$ip");
         $output = Artisan::output();
 
         return response()->json([

@@ -112,7 +112,7 @@ class SensorCrawler implements ShouldQueue
             'timestamp' => now()->format('Y-m-d H:i:s'),
             'status'    => $status,
             'message'   => $message,
-            'data'      => empty($data)  || $data === '' ? new \stdClass() : $data,
+            'data'      => empty($data) || $data === '' ? (object) [] : (object) $data,
         ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }
 }

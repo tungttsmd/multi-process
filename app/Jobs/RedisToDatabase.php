@@ -24,19 +24,21 @@ class RedisToDatabase implements ShouldQueue
     {
         try {
             $sensorKey = "ipmi_sensor:" . str_replace('.', '_', $this->host_ip);
-            $statusKey = "ipmi_status:" . str_replace('.', '_', $this->host_ip);
+            $powerKey = "ipmi_power:" . str_replace('.', '_', $this->host_ip);
 
-            $sensorRawList = Redis::lrange($sensorKey, 0, -1);
-            $statusRawList = Redis::lrange($statusKey, 0, -1);
+            $sensorRawList = Redis::lrange($sensorKey, -1, -1);
+            $powerRawList = Redis::lrange($powerKey, -1, -1);
 
             if (empty($sensorRawList) && empty($statusRawList)) {
                 Log::channel($this->channelLogFile)->info("[$this->host_ip] Không có dữ liệu trong Redis");
+                Log::channel($this->channelLogFile)->info(json_encode($powerRawList));
+                Log::channel($this->channelLogFile)->info(json_encode($sensorRawList));
                 return;
             }
 
             // Lấy phần tử cuối (mới nhất)
             $sensorRaw = end($sensorRawList);
-            $statusRaw = end($statusRawList);
+            $powerRaw = end($powerRawList);
 
             // Log::channel($this->channelLogFile)->info('Sensor: ' . $sensorRaw);
             // Log::channel($this->channelLogFile)->info('Status: ' . $statusRaw);
@@ -52,10 +54,10 @@ class RedisToDatabase implements ShouldQueue
                 ]);
             };
 
-            DB::table('statuses')
+            DB::table('powers')
                 ->where('ip', $this->host_ip)
                 ->update([
-                    'log' => json_encode($statusRaw, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
+                    'log' => json_encode($powerRaw, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
                     'updated_at' => now(),
                 ]);
 

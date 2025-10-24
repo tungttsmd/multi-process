@@ -1,5 +1,6 @@
 <div class="flex flex-col min-h-screen text-gray-900 bg-gray-50">
 
+
     <!-- 🔸 Header -->
     <header class="sticky top-0 z-50 flex items-center justify-between px-4 py-3 bg-white shadow-sm">
         <div class="flex items-center space-x-2">
@@ -40,24 +41,49 @@
             <h1 class="mb-6 text-2xl font-semibold">Bảng điều khiển</h1>
 
             <!-- Grid responsive -->
-            <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                <!-- Card 1 -->
-                <div class="p-4 transition-all bg-white shadow rounded-2xl hover:shadow-md">
-                    <h2 class="mb-2 text-lg font-semibold">Server 101</h2>
-                    <p class="text-sm text-gray-500">Trạng thái: <span
-                            class="font-semibold text-green-600">Online</span></p>
-                    <p class="mt-1 text-sm text-gray-500">Nhiệt độ: <span class="font-medium text-gray-800">46°C</span>
-                    </p>
-                </div>
+            <div style="gap: 4px; padding:0" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <!-- Card -->
+                @foreach ($fetch as $index => $item)
+                    <div class="p-2 transition-all bg-white rounded shadow b-1 hover:shadow-md">
+                        <h3 class="mb-1 text-lg font-semibold">{{ $item->name ?? null }}</h3>
+                        <div class="d-flex">
+                            <button wire:click="powerAction('on')" type="button">Power ON |</button>
+                            <button type="button">Power OFF |</button>
+                            <button type="button">Power RESET</button>
+                        </div>
+                        <style>
+                            .statistic-display {
+                                display: none;
+                            }
+                        </style>
+                        <div class="statistic-display">
+                            <p class="mt-1 text-sm text-gray-500">CPU 1:
+                                <span>{{ $item->sensor_log->data->CPU0_Temp ?? null }} °C</span>
+                            </p>
+                            <p class="mt-1 text-sm text-gray-500">CPU 2:
+                                <span>{{ $item->sensor_log->data->CPU1_Temp ?? null }} °C</span>
+                            </p>
+                            <p class="mt-1 text-sm text-gray-500">FAN CPU 1:
+                                <span>{{ $item->sensor_log->data->CPU0_FAN ?? null }} RPM</span>
+                            </p>
+                            <p class="mt-1 text-sm text-gray-500">FAN CPU 2:
+                                <span>{{ $item->sensor_log->data->CPU1_FAN ?? null }} RPM</span>
+                            </p>
+                        </div>
+                        <p>
+                            <span class="mt-1 text-sm text-gray-500">{{ $item->ip ?? null }}</span>
+                        </p>
+                        <p>
+                            @if (isset($item->power_log->status) && $item->power_log->status === 'success')
+                                {{ strtoupper($item->power_log->data->power) }}
+                            @else
+                                N/A
+                            @endif
+                        </p>
 
-                <!-- Card 2 -->
-                <div class="p-4 transition-all bg-white shadow rounded-2xl hover:shadow-md">
-                    <h2 class="mb-2 text-lg font-semibold">Server 102</h2>
-                    <p class="text-sm text-gray-500">Trạng thái: <span class="font-semibold text-red-600">Offline</span>
-                    </p>
-                    <p class="mt-1 text-sm text-gray-500">Nhiệt độ: <span class="font-medium text-gray-800">--</span>
-                    </p>
-                </div>
+                    </div>
+                @endforeach
+
 
                 <!-- Thêm card khác... -->
             </div>

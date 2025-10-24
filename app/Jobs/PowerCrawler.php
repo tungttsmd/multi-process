@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Symfony\Component\Process\Process;
 
-class StatusCrawler implements ShouldQueue
+class PowerCrawler implements ShouldQueue
 {
     use Queueable;
 
@@ -40,9 +40,9 @@ class StatusCrawler implements ShouldQueue
             'status',
         ];
 
-        $this->channelLogFile = 'host_status_log';
+        $this->channelLogFile = 'host_power_log';
         $hostRedisFormat      = str_replace('.', '_', $this->host_ip);
-        $this->redisKey       = "ipmi_status:$hostRedisFormat";
+        $this->redisKey       = "ipmi_power:$hostRedisFormat";
     }
 
     public function handle(): void
@@ -69,17 +69,17 @@ class StatusCrawler implements ShouldQueue
                 throw new \RuntimeException('Empty response from IPMI');
             }
 
-            $json = $this->parseStatusOutput($stdout);
-            // Log::channel($this->channelLogFile)->info($json);
+            $json = $this->parsePowerOutput($stdout);
+            Log::channel($this->channelLogFile)->info($json);
             Redis::rpush($this->redisKey, $json);
         } catch (\Throwable $e) {
             $error = $this->makeResponse('error', $e->getMessage());
-            // Log::channel($this->channelLogFile)->error($error);
+            Log::channel($this->channelLogFile)->error($error);
             Redis::rpush($this->redisKey, $error);
         }
     }
 
-    protected function parseStatusOutput(string $rawOutput): string
+    protected function parsePowerOutput(string $rawOutput): string
     {
         $output = strtolower(trim($rawOutput));
         $power = 'unknown';
@@ -93,7 +93,7 @@ class StatusCrawler implements ShouldQueue
         }
 
         if ($power === 'unknown') {
-            throw new \RuntimeException($rawOutput ?: 'Unable to determine power state');
+            throw new \RuntimeException($rawOutput ?: 'Power không xác định');
         }
 
         return $this->makeResponse('success', 'Power status fetched successfully', ['power' => $power]);
@@ -106,7 +106,7 @@ class StatusCrawler implements ShouldQueue
             'timestamp' => now()->format('Y-m-d H:i:s'),
             'status'    => $status,
             'message'   => $message,
-            'data'      => empty($data) || $data === '' ? new \stdClass() : $data,
+            'data'      => empty($data) || $data === '' ? (object) [] : (object) $data,
         ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }
 }

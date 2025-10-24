@@ -45,7 +45,7 @@ class IPMIProcessRun extends Command
             -Command
             "Start-Process
             php
-            -ArgumentList \'artisan queue:work --queue=' . $queue . ' --sleep=1 --tries=3\' -WindowStyle Hidden"';
+            -ArgumentList \'artisan queue:work --queue=' . $queue . ' --sleep=1\' -WindowStyle Hidden"';
 
             $process = Process::fromShellCommandline($cmd);
             $process->run();
@@ -56,8 +56,6 @@ class IPMIProcessRun extends Command
                 $this->error("Lỗi khi khởi động worker: {$queue}");
                 $this->line($process->getErrorOutput());
             }
-
-            usleep(200000); // 0.2s tránh mở ồ ạt cùng lúc
         }
 
         $this->info("Hoàn tất khởi động tất cả worker!");

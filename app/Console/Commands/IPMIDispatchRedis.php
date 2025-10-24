@@ -27,12 +27,8 @@ class IPMIDispatchRedis extends Command
     public function handle()
     {
         $list = DB::table('hosts')->get();
-        $queues = config('queue.processor.update');
-        foreach ($list as $item) {
-            foreach ($queues as $queue) {
-                $this->line($queue . ' => ' . $item->ip);
-                dispatch(new RedisToDatabase($item->ip))->onQueue($queue);
-            }
+        foreach ($list as $index => $item) {
+            dispatch(new RedisToDatabase($item->ip))->onQueue('processor_update_' . (($index % 4) + 1));
         }
     }
 }

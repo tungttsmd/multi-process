@@ -9,7 +9,7 @@ class PowerFetcher extends Controller
     protected $table;
 
     function __construct() {
-        $this->table = 'statuses';
+        $this->table = 'powers';
     }
 
      /**

@@ -25,7 +25,7 @@ class IPMIDispatchSensor extends Command
 
             foreach ($hosts as $index => $host) {
                 dispatch(new SensorCrawler($host->ip, $host->username, $host->password))
-                    ->onQueue('processor_sensor_' . (($index % 8) + 1));
+                    ->onQueue('processor_sensor_' . (($index % 28) + 1));
                 $this->success("Đã dispatch SensorCrawler cho {$host->ip}");
             }
 

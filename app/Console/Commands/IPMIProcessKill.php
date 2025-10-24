@@ -54,12 +54,6 @@ class IPMIProcessKill extends Command
         $this->info("Đã phát hiện " . count($pids) . " tiến trình PHP queue:work.");
         $this->line("PID: " . implode(', ', $pids));
 
-        // Xác nhận nếu chưa có --force
-        if (!$this->confirm('Bạn có chắc muốn dừng tất cả các tiến trình này?', true)) {
-            $this->warn('Đã hủy thao tác.');
-            return;
-        }
-
         // Kill từng tiến trình
         foreach ($pids as $pid) {
             $killCmd = "powershell -Command \"Stop-Process -Id $pid -Force\"";
@@ -71,8 +65,6 @@ class IPMIProcessKill extends Command
             } else {
                 $this->error("Không thể dừng PID: $pid");
             }
-
-            usleep(100000); // nghỉ 0.1s giữa mỗi lệnh kill
         }
 
         $this->info("Tất cả tiến trình queue:work đã được dừng!");

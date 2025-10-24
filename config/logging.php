@@ -57,9 +57,9 @@ return [
             'path' => storage_path('logs/host_sensor_log.log'),
             'level' => 'info',
         ],
-        'host_status_log' => [
+        'host_power_log' => [
             'driver' => 'single',
-            'path' => storage_path('logs/host_status_log.log'),
+            'path' => storage_path('logs/host_power_log.log'),
             'level' => 'info',
         ],
         'host_power_log' => [

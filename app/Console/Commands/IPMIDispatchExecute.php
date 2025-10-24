@@ -1,0 +1,52 @@
+<?php
+
+namespace App\Console\Commands;
+
+use App\Jobs\PowerExecutor;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+
+class IPMIDispatchExecute extends Command
+{
+    protected $signature = 'ipmi:execute {mode : on:<ip>|off:<ip>|reset:<ip>}';
+    protected $description = 'Dispatch job PowerExecutor để bật/tắt/reset một host cụ thể (không hỗ trợ all)';
+
+    public function handle()
+    {
+        $mode = $this->argument('mode');
+
+        // --- Tách cú pháp on:ip / off:ip / reset:ip ---
+        $parts = explode(':', $mode);
+        if (count($parts) !== 2) {
+            $this->error('Sai cú pháp. Dùng: php artisan ipmi:power on:192.168.1.10');
+            return;
+        }
+
+        [$action, $ip] = $parts;
+
+        if (!in_array($action, ['on', 'off', 'reset'])) {
+            $this->error("Hành động không hợp lệ: $action");
+            return;
+        }
+
+        $host = DB::table('hosts')->where('ip', $ip)->first();
+        if (!$host) {
+            $this->error("Không tìm thấy host có IP: {$ip}");
+            return;
+        }
+
+        // --- Xác nhận thao tác (bỏ qua nếu chạy non-interactive hoặc có cờ --force) ---
+        if (app()->runningInConsole()) {
+            if (!$this->confirm("Xác nhận: ({$host->ip}) => chassis power {$action}", true)) {
+                $this->warn("Đã huỷ thao tác: ({$host->ip}) => power {$action}");
+                return;
+            }
+        }
+
+        // --- Dispatch job ---
+        dispatch(new PowerExecutor($host->ip, $host->username, $host->password, $action))
+            ->onQueue('processor_execute_1');
+
+        $this->info("Đã gửi lệnh power {$action} cho {$host->ip}");
+    }
+}

@@ -29,7 +29,6 @@ Route::get('/api/ipmi/power/{ip}/{action}', function ($ip,$action){
 
 // ========= start Giao diện ===========
 Route::get('/index', [IndexController::class, 'index']);
-
 // ========= start Giao diện ===========
 
 
@@ -51,8 +50,8 @@ Route::get('/api/redis/sensor/{ip}', function ($ip){
 })->name('sensors');
 
 // Lệnh status fetch cụ thể
-Route::get('/api/redis/status/{ip}', function ($ip){
-    $key = "ipmi_status:".str_replace('.','_',$ip);
+Route::get('/api/redis/power/{ip}', function ($ip){
+    $key = "ipmi_power:".str_replace('.','_',$ip);
     Artisan::call('redis:fetch '. $key);
     $output = Artisan::output();
 
@@ -112,8 +111,13 @@ Route::get('/ipmi-grid', function () {
 })->name('ipmi-grid');
 
 Route::get('/', function () {
-    return view('welcome'); // hoặc view tương ứng
 })->name('home');
+
+
+// Route::get('/', function () {
+//     return view('welcome'); // hoặc view tương ứng
+// })->name('welcome');
+
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])
     ->name('dashboard');

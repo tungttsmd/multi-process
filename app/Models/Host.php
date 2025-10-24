@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Sensor;
+use App\Models\Power;
 
 class Host extends Model
 {
     protected $table = 'hosts';
     protected $fillable = ['name', 'ip'];
+
     public function sensor()
     {
         return $this->hasOne(Sensor::class, 'ip', 'ip');
