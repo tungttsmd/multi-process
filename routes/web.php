@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\IndexController;
 use App\Http\Controllers\PowerAction;
 use App\Http\Controllers\PowerFetcher;
 use App\Http\Controllers\SensorFetcher;
+use App\Livewire\IndexLw;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 use Livewire\Volt\Volt;
@@ -25,6 +27,10 @@ Route::get('/api/ipmi/power/{ip}/{action}', function ($ip,$action){
 });
 // ========= end Nguồn dữ liệu =========
 
+// ========= start Giao diện ===========
+Route::get('/index', [IndexController::class, 'index']);
+
+// ========= start Giao diện ===========
 
 
 Route::get('/testjson', function () {
@@ -103,7 +109,7 @@ Route::get('/api/redis/status/{ip}', function ($ip){
 // IPMI Grid View
 Route::get('/ipmi-grid', function () {
     return view('ipmi-grid');
-})->middleware(['auth'])->name('ipmi.grid');
+})->name('ipmi-grid');
 
 Route::get('/', function () {
     return view('welcome'); // hoặc view tương ứng

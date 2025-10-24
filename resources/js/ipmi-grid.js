@@ -116,47 +116,47 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Refresh data every 12.12 seconds
-// setInterval(fetchServerData, 12120);
+setInterval(fetchServerData, 12120);
 
 // Fetch server data song song
-// async function fetchServerData() {
-//     try {
-//         // Gọi 2 API song song
-//         const [resSensors, resPowers] = await Promise.all([
-//             fetch('/api/ipmi/sensor/fetch'),
-//             fetch('/api/ipmi/power/fetch')
-//         ]);
+async function fetchServerData() {
+    try {
+        // Gọi 2 API song song
+        const [resSensors, resPowers] = await Promise.all([
+            fetch('/api/ipmi/sensor/fetch'),
+            fetch('/api/ipmi/power/fetch')
+        ]);
 
-//         // Đọc JSON song song
-//         const [sensorsResult, powersResult] = await Promise.all([
-//             resSensors.json(),
-//             resPowers.json()
-//         ]);
+        // Đọc JSON song song
+        const [sensorsResult, powersResult] = await Promise.all([
+            resSensors.json(),
+            resPowers.json()
+        ]);
 
-//         if (sensorsResult.success && powersResult.success) {
-//             const combinedData = sensorsResult.data.map(sensor => {
-//                 const match = powersResult.data.find(s => s.ip === sensor.ip);
-//                 const power = (match?.power ?? match?.data?.power ?? match?.cpu1_fan?.power) ?? 'N/A';
-//                 return {
-//                     ...sensor,
-//                     status: match ? match.status : 'unknown',
-//                     power
-//                 };
-//             });
+        if (sensorsResult.success && powersResult.success) {
+            const combinedData = sensorsResult.data.map(sensor => {
+                const match = powersResult.data.find(s => s.ip === sensor.ip);
+                const power = (match?.power ?? match?.data?.power ?? match?.cpu1_fan?.power) ?? 'N/A';
+                return {
+                    ...sensor,
+                    status: match ? match.status : 'unknown',
+                    power
+                };
+            });
 
-//             serverData = combinedData;
-//             updateGrid();
-//         } else {
-//             console.error('Invalid data format:', sensorsResult, powersResult);
-//             serverData = [];
-//             updateGrid();
-//         }
-//     } catch (error) {
-//         console.error('Error fetching server data:', error);
-//         serverData = [];
-//         updateGrid();
-//     }
-// }
+            serverData = combinedData;
+            updateGrid();
+        } else {
+            console.error('Invalid data format:', sensorsResult, powersResult);
+            serverData = [];
+            updateGrid();
+        }
+    } catch (error) {
+        console.error('Error fetching server data:', error);
+        serverData = [];
+        updateGrid();
+    }
+}
 
 // Update grid with server data
 function updateGrid() {

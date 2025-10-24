@@ -22,6 +22,6 @@ class DatabaseSeeder extends Seeder
         ]);
         $this->call(HostSeeder::class);
         $this->call(SyncHostToSensorSeeder::class);
-        $this->call(SyncHostToStatusSeeder::class);
+        $this->call(SyncHostToPowerSeeder::class);
     }
 }

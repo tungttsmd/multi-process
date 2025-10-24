@@ -40,7 +40,7 @@ class PowerExecutor implements ShouldQueue
                 $action, // Lệnh thực thi
             ];
         } else {
-            Log::channel($this->channelLogFile)->info("Action không hợp lệ");
+            // Log::channel($this->channelLogFile)->info("Action không hợp lệ");
             Redis::rpush($this->redisKey, "Action không hợp lệ");
             throw new \Exception("Action không hợp lệ");
         }
@@ -69,9 +69,9 @@ class PowerExecutor implements ShouldQueue
 
             // Ghi log và đệm vào Redis
             Redis::rpush($this->redisKey, $output);
-            Log::channel($this->channelLogFile)->info($output);
+            // Log::channel($this->channelLogFile)->info($output);
         } catch (\Exception $e) {
-            Log::channel($this->channelLogFile)->error($e->getMessage());
+            // Log::channel($this->channelLogFile)->error($e->getMessage());
             Redis::rpush($this->redisKey, $e->getMessage());
         }
     }

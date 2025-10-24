@@ -70,11 +70,11 @@ class StatusCrawler implements ShouldQueue
             }
 
             $json = $this->parseStatusOutput($stdout);
-            Log::channel($this->channelLogFile)->info($json);
+            // Log::channel($this->channelLogFile)->info($json);
             Redis::rpush($this->redisKey, $json);
         } catch (\Throwable $e) {
             $error = $this->makeResponse('error', $e->getMessage());
-            Log::channel($this->channelLogFile)->error($error);
+            // Log::channel($this->channelLogFile)->error($error);
             Redis::rpush($this->redisKey, $error);
         }
     }

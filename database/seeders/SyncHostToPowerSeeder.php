@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
-class SyncHostToStatusSeeder extends Seeder
+class SyncHostToPowerSeeder extends Seeder
 {
     public function run(): void
     {
@@ -13,10 +13,10 @@ class SyncHostToStatusSeeder extends Seeder
 
         foreach ($hosts as $host) {
             // Chèn bản ghi status tương ứng
-            DB::table('statuses')->updateOrInsert(
+            DB::table('powers')->updateOrInsert(
                 ['ip' => $host->ip],
                 [
-                    'log' => '{}',
+                    'log' => null,
                     'updated_at' => now(),
                 ]
             );

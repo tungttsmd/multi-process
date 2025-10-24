@@ -16,7 +16,7 @@ class SyncHostToSensorSeeder extends Seeder
             DB::table('sensors')->updateOrInsert(
                 ['ip' => $host->ip],
                 [
-                    'log' => '{}',
+                    'log' => null,
                     'updated_at' => now(),
                 ]
             );

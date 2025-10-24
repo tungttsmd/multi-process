@@ -38,8 +38,8 @@ class RedisToDatabase implements ShouldQueue
             $sensorRaw = end($sensorRawList);
             $statusRaw = end($statusRawList);
 
-            Log::channel($this->channelLogFile)->info('Sensor: ' . $sensorRaw);
-            Log::channel($this->channelLogFile)->info('Status: ' . $statusRaw);
+            // Log::channel($this->channelLogFile)->info('Sensor: ' . $sensorRaw);
+            // Log::channel($this->channelLogFile)->info('Status: ' . $statusRaw);
 
             $status = json_decode($sensorRaw)->status;
 
