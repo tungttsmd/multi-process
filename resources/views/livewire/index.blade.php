@@ -1,6 +1,4 @@
 <div class="flex flex-col min-h-screen text-gray-900 bg-gray-50">
-
-
     <!-- 🔸 Header -->
     <header class="sticky top-0 z-50 flex items-center justify-between px-4 py-3 bg-white shadow-sm">
         <div class="flex items-center space-x-2">
@@ -31,7 +29,7 @@
             <nav class="p-4 space-y-2">
                 <a href="#" class="block px-3 py-2 font-medium rounded-lg hover:bg-blue-50">Tổng quan</a>
                 <a href="#" class="block px-3 py-2 font-medium rounded-lg hover:bg-blue-50">Quản lý máy chủ</a>
-                <a href="#" class="block px-3 py-2 font-medium rounded-lg hover:bg-blue-50">Giám sát</a>
+                <a href="#" class="px-3 py-2 font-medium rounded-lg bloc k hover:bg-blue-50">Giám sát</a>
                 <a href="#" class="block px-3 py-2 font-medium rounded-lg hover:bg-blue-50">Cài đặt</a>
             </nav>
         </aside>
@@ -41,47 +39,11 @@
             <h1 class="mb-6 text-2xl font-semibold">Bảng điều khiển</h1>
 
             <!-- Grid responsive -->
-            <div style="gap: 4px; padding:0" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div wire:poll.12s="fetchRefresh" style="gap: 4px; padding:0"
+                class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 <!-- Card -->
                 @foreach ($fetch as $index => $item)
-                    <div class="p-2 transition-all bg-white rounded shadow b-1 hover:shadow-md">
-                        <h3 class="mb-1 text-lg font-semibold">{{ $item->name ?? null }}</h3>
-                        <div class="d-flex">
-                            <button wire:click="powerAction('on')" type="button">Power ON |</button>
-                            <button type="button">Power OFF |</button>
-                            <button type="button">Power RESET</button>
-                        </div>
-                        <style>
-                            .statistic-display {
-                                display: none;
-                            }
-                        </style>
-                        <div class="statistic-display">
-                            <p class="mt-1 text-sm text-gray-500">CPU 1:
-                                <span>{{ $item->sensor_log->data->CPU0_Temp ?? null }} °C</span>
-                            </p>
-                            <p class="mt-1 text-sm text-gray-500">CPU 2:
-                                <span>{{ $item->sensor_log->data->CPU1_Temp ?? null }} °C</span>
-                            </p>
-                            <p class="mt-1 text-sm text-gray-500">FAN CPU 1:
-                                <span>{{ $item->sensor_log->data->CPU0_FAN ?? null }} RPM</span>
-                            </p>
-                            <p class="mt-1 text-sm text-gray-500">FAN CPU 2:
-                                <span>{{ $item->sensor_log->data->CPU1_FAN ?? null }} RPM</span>
-                            </p>
-                        </div>
-                        <p>
-                            <span class="mt-1 text-sm text-gray-500">{{ $item->ip ?? null }}</span>
-                        </p>
-                        <p>
-                            @if (isset($item->power_log->status) && $item->power_log->status === 'success')
-                                {{ strtoupper($item->power_log->data->power) }}
-                            @else
-                                N/A
-                            @endif
-                        </p>
-
-                    </div>
+                    <x-partials.server-grid-card :item=$item />
                 @endforeach
 
 

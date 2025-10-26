@@ -26,26 +26,26 @@ class IPMIProcessRun extends Command
      */
     public function handle()
     {
+
         // Danh sách queue bạn muốn chạy song song
         $queues = array_merge(
             config('queue.processor.sensor'),
-            config('queue.processor.status'),
-            config('queue.processor.update'),
             config('queue.processor.power'),
+            config('queue.processor.update'),
+            config('queue.processor.execute'),
+            [
+                config('queue.processor.user_power'),
+                config('queue.processor.user_sensor'),
+                config('queue.processor.user_update'),
+                config('queue.processor.user_execute')
+            ]
         );
 
         $this->info("Bắt đầu khởi động " . count($queues) . " worker...");
 
         foreach ($queues as $queue) {
             // Câu lệnh PowerShell tương thích Git Bash
-            $cmd = 'powershell
-            -NoProfile
-            -ExecutionPolicy
-            Bypass
-            -Command
-            "Start-Process
-            php
-            -ArgumentList \'artisan queue:work --queue=' . $queue . ' --sleep=1\' -WindowStyle Hidden"';
+            $cmd = 'powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process php -ArgumentList \'artisan queue:work --queue=' . $queue . ' --sleep=1\' -WindowStyle Hidden"';
 
             $process = Process::fromShellCommandline($cmd);
             $process->run();
@@ -56,6 +56,7 @@ class IPMIProcessRun extends Command
                 $this->error("Lỗi khi khởi động worker: {$queue}");
                 $this->line($process->getErrorOutput());
             }
+            sleep(1);
         }
 
         $this->info("Hoàn tất khởi động tất cả worker!");

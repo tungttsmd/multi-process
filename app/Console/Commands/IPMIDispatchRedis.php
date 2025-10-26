@@ -13,7 +13,7 @@ class IPMIDispatchRedis extends Command
      *
      * @var string
      */
-    protected $signature = 'ipmi:redis';
+    protected $signature = 'ipmi:redis {mode : all|host:<ip>}';
     /**
      * The console command description.
      *
@@ -26,9 +26,30 @@ class IPMIDispatchRedis extends Command
      */
     public function handle()
     {
-        $list = DB::table('hosts')->get();
-        foreach ($list as $index => $item) {
-            dispatch(new RedisToDatabase($item->ip))->onQueue('processor_update_' . (($index % 4) + 1));
+        $mode = $this->argument('mode');
+
+        if ($mode === 'all') {
+            $list = DB::table('hosts')->get();
+            foreach ($list as $index => $item) {
+                dispatch(new RedisToDatabase($item->ip))->onQueue('processor_update_' . (($index % 4) + 1));
+            }
         }
+
+        if (str_starts_with($mode, 'host:')) {
+            $ip = substr($mode, 5);
+            $host = DB::table('hosts')->where('ip', $ip)->first();
+
+            if (!$host) {
+                $this->error("Không tìm thấy host có IP: {$ip}");
+                return;
+            }
+
+            $processor = config('queue.processor.user_update');
+            $this->info(json_encode($processor));
+
+            dispatch(new RedisToDatabase($ip))
+            ->onQueue($processor);
+        }
+
     }
 }

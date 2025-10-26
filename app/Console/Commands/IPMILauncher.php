@@ -55,10 +55,10 @@ class IPMILauncher extends Command
                 // Đợi 12 giây trước khi đẩy dữ liệu Redis
                 sleep(12);
 
-                // Đẩy dữ liệu Redis vào DB
-                $this->info("-> Khởi động đẩy dữ liệu Redis cache vào database lần $count");
-                $redisProcess = new Process(['php', 'artisan', 'ipmi:redis']);
-                $redisProcess->start();
+                // // Đẩy dữ liệu Redis vào DB
+                // $this->info("-> Khởi động đẩy dữ liệu Redis cache vào database lần $count");
+                // $redisProcess = new Process(['php', 'artisan', 'ipmi:redis', 'all']);
+                // $redisProcess->start();
 
                 // Nghỉ 12 giây trước khi xoá
                 sleep(12);
@@ -123,4 +123,5 @@ class IPMILauncher extends Command
             $this->error('Lỗi khi xoá database queue: ' . $e->getMessage());
         }
     }
+
 }

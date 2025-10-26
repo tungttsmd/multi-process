@@ -43,8 +43,11 @@ class IPMIDispatchPower extends Command
                 return;
             }
 
+            $processor = config('queue.processor.user_power');
+            $this->info(json_encode($processor));
+
             dispatch(new PowerCrawler($host->ip, $host->username, $host->password))
-                ->onQueue('processor_power_1');
+                ->onQueue($processor);
 
             $this->info("Đã dispatch StatusCrawler cho {$host->ip}");
             return;

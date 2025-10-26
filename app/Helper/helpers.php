@@ -13,7 +13,7 @@ if (!function_exists('collectionToObject')) {
      *
      * @throws \InvalidArgumentException
      */
-    function collectionToObject(Collection $input)
+    function collectionToObject(Collection|Model $input)
     {
         // Nếu là Collection hoặc Model thì convert qua JSON rồi decode
         if ($input instanceof Collection || $input instanceof Model) {

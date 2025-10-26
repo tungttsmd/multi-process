@@ -9,11 +9,14 @@ return [
     */
 
     'processor' => [
-        'sensor' => explode(',', env('QUEUE_SENSORS', 'default')),
-        'status'  => explode(',', env('QUEUE_STATUSES', 'default')),
-        'update'  => explode(',', env('QUEUE_UPDATES', 'default')),
-        'power'  => explode(',', env('QUEUE_POWERS', 'default')),
-
+        'sensor' => explode(',', env('QUEUE_SENSOR', 'default')),
+        'execute'  => explode(',', env('QUEUE_EXECUTE', 'default')),
+        'update'  => explode(',', env('QUEUE_UPDATE', 'default')),
+        'power'  => explode(',', env('QUEUE_POWER', 'default')),
+        'user_power' => env('QUEUE_USER_POWER', 'default'),
+        'user_sensor' => env('QUEUE_USER_SENSOR', 'default'),
+        'user_update' =>  env('QUEUE_USER_UPDATE', 'default'),
+        'user_execute' => env('QUEUE_USER_EXECUTE', 'default')
     ],
 
     /*

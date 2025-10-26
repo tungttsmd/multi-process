@@ -44,8 +44,11 @@ class IPMIDispatchExecute extends Command
         }
 
         // --- Dispatch job ---
+        $processor = config('queue.processor.user_execute');
+        $this->info(json_encode($processor));
+
         dispatch(new PowerExecutor($host->ip, $host->username, $host->password, $action))
-            ->onQueue('processor_execute_1');
+            ->onQueue($processor);
 
         $this->info("Đã gửi lệnh power {$action} cho {$host->ip}");
     }

@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Symfony\Component\Process\Process;
@@ -18,12 +19,14 @@ class SensorCrawler implements ShouldQueue
     protected $host_ip;
     protected $username;
     protected $password;
+    protected $lock_token; // Dùng để tái tạo đúng key trong redis, để thực hiện gỡ key khi xong.
 
-    public function __construct($host_ip, $username, $password)
+    public function __construct($host_ip, $username, $password, $lock_token)
     {
         $this->host_ip  = $host_ip;
         $this->username = $username;
         $this->password = $password;
+        $this->lock_token = $lock_token;
 
         $this->command = [
             'ipmitool',
@@ -50,7 +53,16 @@ class SensorCrawler implements ShouldQueue
 
     public function handle(): void
     {
-        try {
+        $lock_key = "ipmi_sensor_dispatch_lock:ip:$this->host_ip";
+        $lock_cache = Cache::restoreLock($lock_key, $this->lock_token);
+
+        // Job này chắc chắn đã bị lock ở command dispatch
+        // Ở đây ta chỉ cần gỡ key -> ta cần lấy lại đúng cache có lock key đó bằng token
+        // token đó tạo ra khi $this->get(), đây là lệnh tạo key đưa vào cache Redis return token
+        // Ở command ta sẽ để $token = $this->get()
+        // Ở job chỉ cần lấy lại đúng key đúng token đó, khi xóa sẽ xóa được key chính xác mà command đưa xuống
+        // Để xóa key đó chỉ cần $lock_cache->release(), lúc này đã trỏ đúng key name và token -> xóa chính xác
+         try {
             $p = new Process($this->command);
             $p->setTimeout(6.6);
             $p->run();
@@ -74,10 +86,15 @@ class SensorCrawler implements ShouldQueue
             $json = $this->parseOutput($stdout);
             // Log::channel($this->channelLogFile)->info($json);
             Redis::rpush($this->redisKey, $json);
+            Log::channel($this->channelLogFile)->info('Đã dispatch sensor: '.$this->host_ip);
         } catch (\Throwable $e) {
             $error = $this->makeResponse('error', $e->getMessage());
             // Log::channel($this->channelLogFile)->error($error);
             Redis::rpush($this->redisKey, $error);
+            Log::channel($this->channelLogFile)->info('Thất bại dispatch sensor không rõ lỗi: '.$this->host_ip);
+        } finally {
+            $release_lock_state = $lock_cache->release();
+            Log::channel($this->channelLogFile)->info(var_export($release_lock_state, true). "- Đã xóa key redis của: $lock_key");
         }
     }
 
@@ -115,4 +132,13 @@ class SensorCrawler implements ShouldQueue
             'data'      => empty($data) || $data === '' ? (object) [] : (object) $data,
         ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }
+
+    public function displayName() {
+        return 'SensorCrawler ['. $this->host_ip.']';
+    }
+    public function tags() {
+        return ['sensor', $this->host_ip];
+    }
+
+
 }
