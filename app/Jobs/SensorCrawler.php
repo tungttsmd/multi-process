@@ -2,16 +2,17 @@
 
 namespace App\Jobs;
 
+use App\Services\RedisCacheService;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
 use Symfony\Component\Process\Process;
 
 class SensorCrawler implements ShouldQueue
 {
-    use Queueable;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $command;
     protected $channelLogFile;
@@ -19,14 +20,47 @@ class SensorCrawler implements ShouldQueue
     protected $host_ip;
     protected $username;
     protected $password;
-    protected $lock_token; // Dùng để tái tạo đúng key trong redis, để thực hiện gỡ key khi xong.
+    protected $queue_worker;
 
-    public function __construct($host_ip, $username, $password, $lock_token)
+    protected $redis_dispatch_note;
+    protected $redis_job_done_count;
+    protected $redis_job_done;
+    protected $redis_job_data;
+    protected $redis_host;
+
+    public function __construct($host_ip, $username, $password, $queue_worker)
     {
         $this->host_ip  = $host_ip;
+
         $this->username = $username;
         $this->password = $password;
-        $this->lock_token = $lock_token;
+
+        $this->queue_worker = $queue_worker;
+
+         /**
+         * redis key:
+         *
+         * [
+         *  sensor_job_done_count_host::192_153_4_20 => int 1,
+         *  sensor_job_done_host:192_153_4_20 => true/false
+         *  sensor_data_host:192_153_4_20 => json...
+         * ]
+         */
+
+        // Format host: 192_153_4_20;
+        $this->redis_host = str_replace('.', '_', $this->host_ip);
+
+        // Format key: sensor_job_done_count_host::192_153_4_20
+        $this->redis_job_done_count = new RedisCacheService('sensor_job_done_count_host:'.$this->redis_host, $queue_worker);
+
+        // Format key: sensor_job_done_host:192_153_4_20
+        $this->redis_job_done = new RedisCacheService('sensor_job_done_host:'.$this->redis_host, $queue_worker);
+
+        // Format key: sensor_data_host:192_153_4_20
+        $this->redis_job_data = new RedisCacheService('sensor_data_host:'.$this->redis_host, $queue_worker);
+
+        // Redis dispatch note: dispatch:192_153_4_20
+        $this->redis_dispatch_note = new RedisCacheService('dispatch:'.$this->redis_host, $queue_worker);
 
         $this->command = [
             'ipmitool',
@@ -45,57 +79,59 @@ class SensorCrawler implements ShouldQueue
             'CPU0_FAN',
             'CPU1_FAN',
         ];
-
-        $this->channelLogFile = 'host_sensor_log';
-        $hostRedisFormat      = str_replace('.', '_', $this->host_ip);
-        $this->redisKey       = "ipmi_sensor:$hostRedisFormat";
     }
 
     public function handle(): void
     {
-        $lock_key = "ipmi_sensor_dispatch_lock:ip:$this->host_ip";
-        $lock_cache = Cache::restoreLock($lock_key, $this->lock_token);
 
-        // Job này chắc chắn đã bị lock ở command dispatch
-        // Ở đây ta chỉ cần gỡ key -> ta cần lấy lại đúng cache có lock key đó bằng token
-        // token đó tạo ra khi $this->get(), đây là lệnh tạo key đưa vào cache Redis return token
-        // Ở command ta sẽ để $token = $this->get()
-        // Ở job chỉ cần lấy lại đúng key đúng token đó, khi xóa sẽ xóa được key chính xác mà command đưa xuống
-        // Để xóa key đó chỉ cần $lock_cache->release(), lúc này đã trỏ đúng key name và token -> xóa chính xác
          try {
-            $p = new Process($this->command);
-            $p->setTimeout(6.6);
-            $p->run();
 
-            $stderr = trim($p->getErrorOutput());
-            $stdout = trim($p->getOutput());
+            $runtime = $this->runtime($this->command, 12);
 
-            if (str_contains($stderr, 'exceeded the timeout') || $p->getExitCode() === 143) {
-                throw new \RuntimeException("Timeout after {$p->getTimeout()}s (no IPMI response)");
+            // Kiểm tra lỗi
+            $validation = $this->runtimeValidation($runtime['stderr'], $runtime['stdout'], $runtime['p']);
+
+            if ($validation !== 'ok'){
+                throw new \RuntimeException($validation);
             }
 
-            if (!$p->isSuccessful()) {
-                $err = $stderr ?: 'Unknown process error';
-                throw new \RuntimeException($err);
-            }
+            $this->doneCaching($this->parseOutput($runtime['stdout']));
 
-            if ($stdout === '' || stripos($stdout, 'timeout') !== false) {
-                throw new \RuntimeException('No sensor data or timeout');
-            }
-
-            $json = $this->parseOutput($stdout);
-            // Log::channel($this->channelLogFile)->info($json);
-            Redis::rpush($this->redisKey, $json);
-            Log::channel($this->channelLogFile)->info('Đã dispatch sensor: '.$this->host_ip);
         } catch (\Throwable $e) {
-            $error = $this->makeResponse('error', $e->getMessage());
-            // Log::channel($this->channelLogFile)->error($error);
-            Redis::rpush($this->redisKey, $error);
-            Log::channel($this->channelLogFile)->info('Thất bại dispatch sensor không rõ lỗi: '.$this->host_ip);
-        } finally {
-            $release_lock_state = $lock_cache->release();
-            Log::channel($this->channelLogFile)->info(var_export($release_lock_state, true). "- Đã xóa key redis của: $lock_key");
+
+            throw new \RuntimeException("Handle fail: ". $e->getMessage());
         }
+    }
+
+    private function runtime($command, $timeout = 12) {
+        $p = new Process($command);
+        $p->setTimeout(10);
+        $p->run();
+
+        $stderr = trim($p->getErrorOutput());
+        $stdout = trim($p->getOutput());
+        return [
+            'p' => $p,
+            'stderr' => $stderr,
+            'stdout' => $stdout
+        ];
+    }
+
+    protected function runtimeValidation($stderr, $stdout, $p) {
+        if (str_contains($stderr, 'exceeded the timeout') || $p->getExitCode() === 143) {
+           return "Timeout after {$p->getTimeout()}s (no IPMI response)";
+        }
+
+        if (!$p->isSuccessful()) {
+            return $stderr ?: 'Unknown process error';
+        }
+
+        if ($stdout === '' || stripos($stdout, 'timeout') !== false) {
+            return 'No sensor data or timeout';
+        }
+
+        // Valid không có lỗi
+        return 'ok';
     }
 
     protected function parseOutput(string $rawOutput): string
@@ -125,6 +161,7 @@ class SensorCrawler implements ShouldQueue
     protected function makeResponse(string $status, string $message, array|string $data = ''): string
     {
         return json_encode([
+            'redis_key' => $this->redis_dispatch_note->key(),
             'ip'        => $this->host_ip,
             'timestamp' => now()->format('Y-m-d H:i:s'),
             'status'    => $status,
@@ -140,5 +177,16 @@ class SensorCrawler implements ShouldQueue
         return ['sensor', $this->host_ip];
     }
 
+    protected function doneCaching($data) {
+
+        // Xóa dispatch note
+        RedisCacheService::remove($this->redis_dispatch_note->key());
+        // Đếm count job theo host
+        $this->redis_job_done_count->inc();
+        // Set true cho job done theo host
+        $this->redis_job_done->set(true);
+        // Set dữ liệu vào redis theo host
+        $this->redis_job_data->set($data);
+    }
 
 }

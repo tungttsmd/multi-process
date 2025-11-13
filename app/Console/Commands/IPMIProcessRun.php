@@ -56,7 +56,6 @@ class IPMIProcessRun extends Command
                 $this->error("Lỗi khi khởi động worker: {$queue}");
                 $this->line($process->getErrorOutput());
             }
-            sleep(1);
         }
 
         $this->info("Hoàn tất khởi động tất cả worker!");

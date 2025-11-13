@@ -21,6 +21,7 @@ class IndexLivewire extends Component
      * @var array
      */
     public $debug;
+public $viewMode = 'grid'; // hoặc 'table'
 
     /**
      * Hàm khởi tạo:
@@ -42,6 +43,12 @@ class IndexLivewire extends Component
         return view('livewire.index');
     }
 
+
+public function toggleView()
+{
+    $this->viewMode = $this->viewMode === 'grid' ? 'table' : 'grid';
+}
+
     /**
      * Cập nhật toàn bộ máy chủ vào $fetch
      *
@@ -49,7 +56,7 @@ class IndexLivewire extends Component
      */
     public function fetchRefresh() {
         // Collection
-        $host = Host::with('sensor', 'power')->get();
+        $host = Host::with('sensor', 'power')->orderBy('name')->get();
 
         // Object
         $this->fetch = $this->mapReturn(collectionToObject($host));
@@ -109,9 +116,14 @@ class IndexLivewire extends Component
     /**
      * Action power
      */
-    public function powerAction($action) {
+    public function powerAction($ip, $action) {
         if ($action === 'on') {
-
+            // Gọi job thực hiện lệnh
+            Artisan::call("ipmi:execute on:$ip");
+        } elseif ($action === 'off') {
+            Artisan::call("ipmi:execute off:$ip");
+        } else {
+            Artisan::call("ipmi:execute reset:$ip");
         }
     }
 

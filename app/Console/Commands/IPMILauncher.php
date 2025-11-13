@@ -48,28 +48,31 @@ class IPMILauncher extends Command
                 $sensorProcess->start();
 
                 // Lấy status (song song)
-                $this->info("-> Khởi động lấy power lần $count");
+                $this->info("-> Khởi động lấy power lần $count ~ 60s đợi");
                 $statusProcess = new Process(['php', 'artisan', 'ipmi:power', 'all']);
                 $statusProcess->start();
 
-                // Đợi 12 giây trước khi đẩy dữ liệu Redis
-                sleep(12);
+                // Đợi 60 giây trước khi đẩy dữ liệu Redis
+                sleep(60);
 
-                // // Đẩy dữ liệu Redis vào DB
-                // $this->info("-> Khởi động đẩy dữ liệu Redis cache vào database lần $count");
-                // $redisProcess = new Process(['php', 'artisan', 'ipmi:redis', 'all']);
-                // $redisProcess->start();
+                // Đẩy dữ liệu Redis vào DB
+                $this->info("-> Khởi động đẩy dữ liệu Redis cache vào database lần $count");
+                $redisProcess = new Process(['php', 'artisan', 'ipmi:redis', 'all']);
+                $redisProcess->start();
 
-                // Nghỉ 12 giây trước khi xoá
-                sleep(12);
 
                 $this->newLine(12);
                 $this->info('====== DỌN DẸP BỘ NHỚ ======');
                 if ($count % 4 === 0) {
+                $this->info('Đã đủ 4 chu trình: tiến hành dọn dẹp... ~ 30 giây');
+                // Nghỉ 30 giây trước khi xoá
+                sleep(30);
+
                 $this->flush();
                 } else {
                     $this->info('Chưa được 4 chu trình: không cần dọn dẹp');
                 }
+
                 $this->info("Hoàn thành cập nhật dữ liệu IPMI lần $count");
 
             } catch (\Throwable $e) {

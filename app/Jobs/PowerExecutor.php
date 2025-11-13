@@ -2,54 +2,88 @@
 
 namespace App\Jobs;
 
+use App\Services\RedisCacheService;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redis;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
 use Symfony\Component\Process\Process;
 
 class PowerExecutor implements ShouldQueue
 {
-    use Queueable;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $command;
     protected $channelLogFile;
-    protected $redisKey;
+    protected $queue_worker;
+    protected $action;
+    protected $host_ip;
+    protected $username;
+    protected $password;
+    protected $redis_host;
+    protected $redis_dispatch_note;
+    protected $redis_job_done_count;
+    protected $redis_job_done;
+    protected $redis_job_data;
 
     /**
      * Create a new job instance.
      */
-    public function __construct($host_ip, $username, $password, $action)
-    {
+    public function __construct($host_ip, $username, $password, $action, $queue_worker) {
+
+        $this->username = $username;
+        $this->password = $password;
+
+        $this->host_ip  = $host_ip;
+
+        $this->queue_worker = $queue_worker;
+         /**
+         * redis key:
+         *
+         * [
+         *  execute_job_done_count_host::192_153_4_20 => int 1,
+         *  execute_job_done_host:192_153_4_20 => true/false
+         *  execute_data_host:192_153_4_20 => json...
+         * ]
+         */
+
+        // Format host: 192_153_4_20;
+        $this->redis_host = str_replace('.', '_', $this->host_ip);
+
+        // Format key: execute_job_done_count_host::192_153_4_20
+        $this->redis_job_done_count = new RedisCacheService('execute_job_done_count_host:'.$this->redis_host, $queue_worker);
+
+        // Format key: execute_job_done_host:192_153_4_20
+        $this->redis_job_done = new RedisCacheService('execute_job_done_host:'.$this->redis_host, $queue_worker);
+
+        // Format key: execute_data_host:192_153_4_20
+        $this->redis_job_data = new RedisCacheService('execute_data_host:'.$this->redis_host, $queue_worker);
+
+        // Redis dispatch note: dispatch:192_153_4_20
+        $this->redis_dispatch_note = new RedisCacheService('dispatch:'.$this->redis_host, $queue_worker);
+
         if (in_array($action, ['on', 'off', 'reset', 'rs'])) {
+
             if ($action == 'rs') {
-                $action = 'reset';
+                $this->action = 'reset';
             };
+
             $this->command = [
                 'ipmitool', // Execute file của IPMI
                 '-I', // Interface (lan/lanplus,usb...)
                 'lanplus',
                 '-H', // Host
-                $host_ip,
+                $this->host_ip,
                 '-U', // User
-                $username,
+                $this->username,
                 '-P', // Password
-                $password,
+                $this->password,
                 'chassis',
                 'power',
-                $action, // Lệnh thực thi
+                $this->action, // Lệnh thực thi
             ];
-        } else {
-            // Log::channel($this->channelLogFile)->info("Action không hợp lệ");
-            Redis::rpush($this->redisKey, "Action không hợp lệ");
-            throw new \Exception("Action không hợp lệ");
         }
-
-        $this->channelLogFile = "host_power_log"; // File ở storage/logs/host_sensor_log.log
-        // Log::channel($this->channelLogFile)->info("Command: " . implode(' ', $this->command));
-
-        $hostRedisFormat = str_replace('.', '_', $host_ip); // 203.113.131.1 chuyển sang format dễ xử lí 203_113_131_1
-        $this->redisKey = "ipmi:power:host:$hostRedisFormat"; // Key Redis cần đặt để lưu vào Memory
     }
 
     /**
@@ -61,18 +95,22 @@ class PowerExecutor implements ShouldQueue
             // Chạy sensor command
             $p = new Process($this->command);
             $p->run();
-            // $output = $p->getOutput();
-            $output = sprintf(
-                "Successfully: %s",
-                implode(' ', $this->command)
-            );
 
-            // Ghi log và đệm vào Redis
-            Redis::rpush($this->redisKey, $output);
-            // Log::channel($this->channelLogFile)->info($output);
+            // Đưa dữ liệu vào redis
+            $this->doneCaching();
+
         } catch (\Exception $e) {
-            // Log::channel($this->channelLogFile)->error($e->getMessage());
-            Redis::rpush($this->redisKey, $e->getMessage());
         }
+    }
+    protected function doneCaching() {
+
+        // Xóa dispatch note
+        RedisCacheService::remove($this->redis_dispatch_note->key());
+        // Đếm count job theo host
+        $this->redis_job_done_count->inc();
+        // Set true cho job done theo host
+        $this->redis_job_done->set(true);
+        // Set dữ liệu vào redis theo host
+        $this->redis_job_data->set($this->redis_host);
     }
 }
